@@ -17,6 +17,12 @@
   <main>
     <section id="tela-prova" aria-labelledby="t-prova">
       <h2 id="t-prova">Prova</h2>
+      <label for="prova-ativa">Prova em uso</label>
+      <select id="prova-ativa"></select>
+      <div class="acoes">
+        <button id="nova-prova">Nova prova</button>
+        <button id="apagar-prova">Apagar esta prova</button>
+      </div>
       <label for="prova-nome">Nome da prova</label>
       <input id="prova-nome" autocomplete="off" placeholder="Ex.: Simulado 1 – Matemática">
       <label for="prova-num">Número de questões (1 a 90)</label>
@@ -43,6 +49,7 @@
       <h2 id="t-corrigir">Corrigir</h2>
       <p id="corrigir-vazio" class="dica">Salve a prova primeiro para poder corrigir.</p>
       <div id="corrigir-pronto" hidden>
+        <p id="corrigindo" class="destaque"></p>
         <label for="turma">Turma</label>
         <input id="turma" autocomplete="off" placeholder="Ex.: 2A">
         <label for="foto" class="botao primario">Fotografar folha</label>

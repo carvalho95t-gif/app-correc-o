@@ -1,28 +1,33 @@
 // Liga as telas aos módulos. A lógica fica em src/.
 import { montarLayout } from './src/layout.js';
 import { folhaSVG } from './src/folha.js';
-import { carregar, salvar, definirProva, estadoInicial, registrar, chave, remover, marcarExportado } from './src/estado.js';
+import { carregar, salvar, definirProva, arquivoInicial, ativo, comAtivo, escolher, novaProva, apagarProva, listar,
+  registrar, chave, remover, marcarExportado } from './src/estado.js';
 import { montarPlanilha, nomeArquivo, porTurma } from './src/planilha.js';
 import { paraCinza, lerFolha, homografia, aplicar } from './src/leitor.js';
 import { corrigir } from './src/nota.js';
 
 const $ = s => document.querySelector(s);
 const LETRAS = [...'ABCDE'];
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const ROTULO = { branco: 'Em branco', dupla: 'Dupla marcação' };
 const nota1 = n => n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 let leitura = null; // leitura em conferência
 
 let armazenamento = null;
 try { localStorage.setItem('teste', '1'); armazenamento = localStorage; } catch { /* navegador sem armazenamento */ }
-let estado = armazenamento ? carregar(armazenamento) : estadoInicial();
-let rascunho = estado.prova ? structuredClone(estado.prova) : { nome: '', gabarito: Array(10).fill(''), anuladas: [], valor: 10 };
+let arquivo = armazenamento ? carregar(armazenamento) : arquivoInicial();
+let estado = ativo(arquivo); // estado da prova em uso
+const provaEmBranco = () => ({ nome: '', gabarito: Array(10).fill(''), anuladas: [], valor: 10 });
+let rascunho = estado.prova ? structuredClone(estado.prova) : provaEmBranco();
 
-function persistir(novo) {
-  estado = novo;
-  try { if (armazenamento) salvar(armazenamento, estado); }
+function gravar(novoArquivo) {
+  arquivo = novoArquivo; estado = ativo(arquivo);
+  try { if (armazenamento) salvar(armazenamento, arquivo); }
   catch { alert('Não foi possível salvar no aparelho. Baixe a planilha agora para não perder.'); }
-  $('#aviso-exportar').hidden = !estado.pendente;
+  $('#aviso-exportar').hidden = !Object.values(arquivo.provas).some(e => e.pendente);
 }
+const persistir = novo => gravar(comAtivo(arquivo, novo));
 
 // Pergunta com botões nomeados pela ação; resolve true para "sim".
 function perguntar(msg, sim, nao) {
@@ -51,6 +56,9 @@ telas.forEach(t => $(`#aba-${t}`).addEventListener('click', () => mostrar(t)));
 
 // ---------- prova ----------
 function renderProva() {
+  const provas = listar(arquivo);
+  $('#prova-ativa').innerHTML = (arquivo.ativa ? '' : '<option value="" selected>Nova prova (ainda não salva)</option>') +
+    provas.map(p => `<option value="${p.id}" ${p.id === arquivo.ativa ? 'selected' : ''}>${esc(p.nome)}</option>`).join('');
   $('#prova-nome').value = rascunho.nome;
   $('#prova-num').value = rascunho.gabarito.length;
   $('#prova-valor').value = rascunho.valor;
@@ -61,10 +69,34 @@ function renderProva() {
       <label><input type="checkbox" data-anular="${i}" ${rascunho.anuladas.includes(i) ? 'checked' : ''}> Anular</label>
     </div>`).join('');
 }
+$('#prova-ativa').addEventListener('change', e => {
+  if (!e.target.value) return;
+  gravar(escolher(arquivo, e.target.value));
+  rascunho = structuredClone(estado.prova); $('#prova-msg').textContent = '';
+  renderProva();
+});
+$('#nova-prova').addEventListener('click', () => {
+  gravar(novaProva(arquivo));
+  rascunho = provaEmBranco(); $('#prova-msg').textContent = '';
+  renderProva();
+});
+$('#apagar-prova').addEventListener('click', async () => {
+  if (arquivo.ativa) {
+    const nome = estado.prova.nome;
+    const ok = await perguntar(estado.pendente
+      ? `Apagar a prova "${nome}" e todas as correções dela? Há correções que ainda não estão na planilha, e elas serão perdidas.`
+      : `Apagar a prova "${nome}" e todas as correções dela?`, 'Apagar prova', 'Manter');
+    if (!ok) return;
+    gravar(apagarProva(arquivo, arquivo.ativa));
+  }
+  rascunho = provaEmBranco(); $('#prova-msg').textContent = '';
+  renderProva();
+});
 $('#prova-nome').addEventListener('input', e => { rascunho.nome = e.target.value; });
 $('#prova-valor').addEventListener('input', e => { rascunho.valor = e.target.value; });
 $('#prova-num').addEventListener('change', e => {
   const n = Math.max(1, Math.min(90, parseInt(e.target.value, 10) || 1));
+  if (n === rascunho.gabarito.length) return; // evita redesenhar a lista no meio de um toque
   rascunho.gabarito = Array.from({ length: n }, (_, i) => rascunho.gabarito[i] ?? '');
   rascunho.anuladas = rascunho.anuladas.filter(i => i < n);
   renderProva();
@@ -103,6 +135,7 @@ $('#imprimir').addEventListener('click', () => window.print());
 // ---------- corrigir ----------
 function renderCorrigir() {
   $('#corrigir-vazio').hidden = !!estado.prova; $('#corrigir-pronto').hidden = !estado.prova;
+  if (estado.prova) $('#corrigindo').textContent = `Corrigindo: ${estado.prova.nome}`;
   try { $('#turma').value ||= localStorage.getItem('correcao-turma') ?? ''; } catch { /* sem armazenamento */ }
 }
 $('#turma').addEventListener('input', e => { try { localStorage.setItem('correcao-turma', e.target.value); } catch { /* ok */ } });
@@ -239,5 +272,5 @@ $('#baixar').addEventListener('click', () => {
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { /* segue funcionando online */ });
 
-persistir(estado);
+gravar(arquivo);
 mostrar(estado.prova ? 'corrigir' : 'prova');

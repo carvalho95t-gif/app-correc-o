@@ -4,7 +4,7 @@
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Trocar de prova não mistura correções
 - [ ] Apagar uma prova pede confirmação e avisa se há correções não exportadas

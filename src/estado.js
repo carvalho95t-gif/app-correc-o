@@ -1,15 +1,33 @@
 // Estado do app, guardado no navegador. Funções puras: nunca alteram o estado recebido.
-const CHAVE = 'correcao-v2';
+// "Arquivo" guarda várias provas; cada uma tem seu "estado": prova, correções e se falta exportar.
+const CHAVE = 'correcao-v3';
 
 export const estadoInicial = () => ({ prova: null, correcoes: {}, pendente: false });
+export const arquivoInicial = () => ({ provas: {}, ativa: null });
 
 export function carregar(storage) {
   try {
-    const e = JSON.parse(storage.getItem(CHAVE));
-    return e && typeof e === 'object' && e.correcoes ? e : estadoInicial();
-  } catch { return estadoInicial(); }
+    const a = JSON.parse(storage.getItem(CHAVE));
+    return a && typeof a === 'object' && a.provas ? a : arquivoInicial();
+  } catch { return arquivoInicial(); }
 }
-export const salvar = (storage, estado) => storage.setItem(CHAVE, JSON.stringify(estado));
+export const salvar = (storage, arquivo) => storage.setItem(CHAVE, JSON.stringify(arquivo));
+
+export const ativo = arquivo => arquivo.provas[arquivo.ativa] ?? estadoInicial();
+
+// Grava o estado da prova ativa; uma prova nova ganha um id na primeira gravação.
+export function comAtivo(arquivo, estado) {
+  const id = arquivo.ativa ?? `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  return { provas: { ...arquivo.provas, [id]: estado }, ativa: id };
+}
+export const escolher = (arquivo, id) => ({ ...arquivo, ativa: id });
+export const novaProva = arquivo => ({ ...arquivo, ativa: null });
+export function apagarProva(arquivo, id) {
+  const { [id]: _, ...resto } = arquivo.provas;
+  return { provas: resto, ativa: arquivo.ativa === id ? null : arquivo.ativa };
+}
+export const listar = arquivo =>
+  Object.entries(arquivo.provas).map(([id, e]) => ({ id, nome: e.prova.nome })).sort((a, b) => a.nome.localeCompare(b.nome));
 
 export function definirProva(estado, prova) {
   const temCorrecoes = Object.keys(estado.correcoes).length > 0;

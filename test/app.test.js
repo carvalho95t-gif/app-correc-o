@@ -173,3 +173,46 @@ test('funciona sem internet depois da primeira abertura', async () => {
   assert.ok(await page.isVisible('#folha svg'));
   await ctx.close();
 });
+
+// ---------- ticket 10: várias provas ----------
+test('várias provas: cada uma guarda suas correções e a ativa aparece em Corrigir', async () => {
+  const { ctx, page } = await abrirApp();
+  await criarProva(page, { nome: 'Prova A' });
+  await fotografarECorrigir(page, '2A', '01', [...'ABCDEABCDE']);
+  await page.click('#salvar-leitura');
+
+  await page.click('#aba-prova');
+  await page.click('#nova-prova');
+  await criarProva(page, { nome: 'Prova B', gabarito: 'EEEEE' });
+  await page.click('#aba-corrigir');
+  assert.match(await page.textContent('#corrigindo'), /Prova B/, await page.textContent('#prova-msg'));
+  await page.click('#aba-resultados');
+  assert.ok(await page.isVisible('#resultados-vazio'));
+
+  await page.click('#aba-prova');
+  await page.selectOption('#prova-ativa', { label: 'Prova A' });
+  assert.equal(await page.inputValue('#prova-nome'), 'Prova A');
+  await page.click('#aba-resultados');
+  assert.equal(await page.locator('#resultados tbody tr').count(), 1);
+  await page.reload();
+  await page.click('#aba-corrigir');
+  assert.match(await page.textContent('#corrigindo'), /Prova A/);
+  await ctx.close();
+});
+
+test('apagar uma prova avisa quando há correções fora da planilha', async () => {
+  const { ctx, page } = await abrirApp();
+  await criarProva(page, { nome: 'Prova A' });
+  await fotografarECorrigir(page, '2A', '01', [...'ABCDEABCDE']);
+  await page.click('#salvar-leitura');
+  await page.click('#aba-prova');
+  await page.click('#apagar-prova');
+  assert.match(await page.textContent('#dlg-msg'), /ainda não estão na planilha/);
+  await page.click('#dlg-nao');
+  assert.equal(await page.inputValue('#prova-nome'), 'Prova A');
+  await page.click('#apagar-prova');
+  await page.click('#dlg-sim');
+  assert.equal(await page.inputValue('#prova-nome'), '');
+  assert.equal(await page.locator('#prova-ativa option').count(), 1); // só "Nova prova"
+  await ctx.close();
+});
