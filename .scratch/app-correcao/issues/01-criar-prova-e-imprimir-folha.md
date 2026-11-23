@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Salvar recusa prova sem nome ou com questão sem gabarito, dizendo qual falta
 - [ ] Folha tem 4 marcadores, nome da prova, linha de nome, número de chamada 00–99, questões A–E e a instrução "Pinte toda a bolinha com caneta preta ou azul."
