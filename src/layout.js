@@ -1,5 +1,6 @@
 // Geometria da folha de respostas, em mm numa página A4 retrato.
-export function montarLayout(numQuestoes) {
+// Com mais de uma versão, a folha ganha uma coluna de bolinhas A–D para o aluno marcar a versão.
+export function montarLayout(numQuestoes, numVersoes = 1) {
   if (!Number.isInteger(numQuestoes) || numQuestoes < 1 || numQuestoes > 90)
     throw new RangeError('Número de questões deve ser de 1 a 90');
   const questoes = [];
@@ -15,5 +16,6 @@ export function montarLayout(numQuestoes) {
     raio: 2.2,
     numero: [digitos(150), digitos(157)],
     questoes,
+    ...(numVersoes > 1 ? { versao: [...Array(numVersoes)].map((_, v) => ({ x: 175, y: 40 + 6 * v })) } : {}),
   };
 }

@@ -2,8 +2,8 @@
 import { montarLayout } from './src/layout.js';
 import { folhaSVG } from './src/folha.js';
 import { carregar, salvar, definirProva, arquivoInicial, ativo, comAtivo, escolher, novaProva, apagarProva, listar,
-  registrar, chave, remover, marcarExportado, definirLista, nomeDo } from './src/estado.js';
-import { montarPlanilha, nomeArquivo, porTurma } from './src/planilha.js';
+  registrar, chave, remover, marcarExportado, definirLista, nomeDo, versaoDe } from './src/estado.js';
+import { montarPlanilha, nomeArquivo, porTurma, notaDe } from './src/planilha.js';
 import { paraCinza, lerFolha, homografia, aplicar } from './src/leitor.js';
 import { corrigir } from './src/nota.js';
 
@@ -18,8 +18,11 @@ let armazenamento = null;
 try { localStorage.setItem('teste', '1'); armazenamento = localStorage; } catch { /* navegador sem armazenamento */ }
 let arquivo = armazenamento ? carregar(armazenamento) : arquivoInicial();
 let estado = ativo(arquivo); // estado da prova em uso
-const provaEmBranco = () => ({ nome: '', gabarito: Array(10).fill(''), anuladas: [], valor: 10 });
+const provaEmBranco = () => ({ nome: '', valor: 10, versoes: [{ gabarito: Array(10).fill(''), anuladas: [] }] });
 let rascunho = estado.prova ? structuredClone(estado.prova) : provaEmBranco();
+let editando = 0; // versão cujo gabarito está sendo editado
+const numQuestoes = p => p.versoes[0].gabarito.length;
+const layoutDa = p => montarLayout(numQuestoes(p), p.versoes.length);
 
 function gravar(novoArquivo) {
   arquivo = novoArquivo; estado = ativo(arquivo);
@@ -60,13 +63,19 @@ function renderProva() {
   $('#prova-ativa').innerHTML = (arquivo.ativa ? '' : '<option value="" selected>Nova prova (ainda não salva)</option>') +
     provas.map(p => `<option value="${p.id}" ${p.id === arquivo.ativa ? 'selected' : ''}>${esc(p.nome)}</option>`).join('');
   $('#prova-nome').value = rascunho.nome;
-  $('#prova-num').value = rascunho.gabarito.length;
+  $('#prova-num').value = numQuestoes(rascunho);
+  $('#prova-versoes').value = rascunho.versoes.length;
+  if (editando >= rascunho.versoes.length) editando = 0;
+  $('#versoes-gabarito').hidden = rascunho.versoes.length < 2;
+  $('#versoes-gabarito').innerHTML = rascunho.versoes.map((_, k) =>
+    `<button data-versao="${'ABCD'[k]}" aria-pressed="${k === editando}">Versão ${'ABCD'[k]}</button>`).join('');
+  const { gabarito, anuladas } = rascunho.versoes[editando];
   $('#prova-valor').value = rascunho.valor;
-  $('#gabarito').innerHTML = rascunho.gabarito.map((g, i) => `
+  $('#gabarito').innerHTML = gabarito.map((g, i) => `
     <div class="linha" role="group" aria-label="Questão ${i + 1}">
       <span class="num">${i + 1}</span>
       ${LETRAS.map(a => `<button data-q="${i}" data-alt="${a}" aria-pressed="${g === a}" aria-label="Questão ${i + 1}, alternativa ${a}">${a}</button>`).join('')}
-      <label><input type="checkbox" data-anular="${i}" ${rascunho.anuladas.includes(i) ? 'checked' : ''}> Anular</label>
+      <label><input type="checkbox" data-anular="${i}" ${anuladas.includes(i) ? 'checked' : ''}> Anular</label>
     </div>`).join('');
 }
 $('#prova-ativa').addEventListener('change', e => {
@@ -96,30 +105,46 @@ $('#prova-nome').addEventListener('input', e => { rascunho.nome = e.target.value
 $('#prova-valor').addEventListener('input', e => { rascunho.valor = e.target.value; });
 $('#prova-num').addEventListener('change', e => {
   const n = Math.max(1, Math.min(90, parseInt(e.target.value, 10) || 1));
-  if (n === rascunho.gabarito.length) return; // evita redesenhar a lista no meio de um toque
-  rascunho.gabarito = Array.from({ length: n }, (_, i) => rascunho.gabarito[i] ?? '');
-  rascunho.anuladas = rascunho.anuladas.filter(i => i < n);
+  if (n === numQuestoes(rascunho)) return; // evita redesenhar a lista no meio de um toque
+  rascunho.versoes = rascunho.versoes.map(v => ({
+    gabarito: Array.from({ length: n }, (_, i) => v.gabarito[i] ?? ''), anuladas: v.anuladas.filter(i => i < n) }));
+  renderProva();
+});
+$('#prova-versoes').addEventListener('change', e => {
+  const k = +e.target.value, n = numQuestoes(rascunho);
+  rascunho.versoes = Array.from({ length: k }, (_, i) => rascunho.versoes[i] ?? { gabarito: Array(n).fill(''), anuladas: [] });
+  renderProva();
+});
+$('#versoes-gabarito').addEventListener('click', e => {
+  const b = e.target.closest('button[data-versao]');
+  if (!b) return;
+  editando = 'ABCD'.indexOf(b.dataset.versao);
   renderProva();
 });
 $('#gabarito').addEventListener('click', e => {
   const b = e.target.closest('button[data-q]');
   if (!b) return;
-  rascunho.gabarito[+b.dataset.q] = b.dataset.alt;
+  rascunho.versoes[editando].gabarito[+b.dataset.q] = b.dataset.alt;
   b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
 });
 $('#gabarito').addEventListener('change', e => {
   const q = +e.target.dataset.anular;
-  rascunho.anuladas = e.target.checked ? [...rascunho.anuladas, q] : rascunho.anuladas.filter(i => i !== q);
+  const v = rascunho.versoes[editando];
+  v.anuladas = e.target.checked ? [...v.anuladas, q] : v.anuladas.filter(i => i !== q);
 });
 $('#salvar-prova').addEventListener('click', () => {
   const msg = $('#prova-msg');
   const valor = Number(String(rascunho.valor).replace(',', '.'));
   if (!rascunho.nome.trim()) { msg.textContent = 'Dê um nome à prova antes de salvar.'; return; }
   if (!(valor > 0)) { msg.textContent = 'O valor da prova precisa ser maior que zero.'; return; }
-  const faltam = rascunho.gabarito.flatMap((g, i) => (!g && !rascunho.anuladas.includes(i) ? [i + 1] : []));
-  if (faltam.length) { msg.textContent = `Falta o gabarito da questão ${faltam.join(', ')}. Marque a alternativa certa ou anule a questão.`; return; }
+  for (const [k, v] of rascunho.versoes.entries()) {
+    const faltam = v.gabarito.flatMap((g, i) => (!g && !v.anuladas.includes(i) ? [i + 1] : []));
+    const daVersao = rascunho.versoes.length > 1 ? ` da versão ${'ABCD'[k]}` : '';
+    if (faltam.length) { msg.textContent = `Falta o gabarito${daVersao} da questão ${faltam.join(', ')}. Marque a alternativa certa ou anule a questão.`; return; }
+  }
   try {
-    persistir(definirProva(estado, { nome: rascunho.nome.trim(), gabarito: rascunho.gabarito.map(g => g || 'A'), anuladas: [...rascunho.anuladas], valor }));
+    persistir(definirProva(estado, { nome: rascunho.nome.trim(), valor,
+      versoes: rascunho.versoes.map(v => ({ gabarito: v.gabarito.map(g => g || 'A'), anuladas: [...v.anuladas] })) }));
     msg.textContent = 'Prova salva. Agora imprima a folha na aba Folha.';
   } catch (err) { msg.textContent = err.message; }
 });
@@ -129,9 +154,9 @@ function renderFolha() {
   const p = estado.prova;
   $('#folha-vazia').hidden = !!p; $('#folha-pronta').hidden = !p;
   if (!p) return;
-  const cabeDuas = p.gabarito.length <= 30, duas = cabeDuas && $('#duas-por-pagina').checked;
+  const cabeDuas = numQuestoes(p) <= 30, duas = cabeDuas && $('#duas-por-pagina').checked;
   $('#opcao-duas').hidden = !cabeDuas;
-  const svg = folhaSVG(montarLayout(p.gabarito.length), p.nome);
+  const svg = folhaSVG(layoutDa(p), p.nome);
   $('#folha').innerHTML = duas ? svg + svg : svg;
   $('#folha').classList.toggle('duas', duas);
   $('#pagina').textContent = `@page { size: A4 ${duas ? 'landscape' : 'portrait'}; margin: 0; }`;
@@ -162,7 +187,7 @@ $('#foto').addEventListener('change', async e => {
     const ctx = cv.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(img, 0, 0, cv.width, cv.height);
     const foto = ctx.getImageData(0, 0, cv.width, cv.height);
-    const layout = montarLayout(estado.prova.gabarito.length);
+    const layout = layoutDa(estado.prova);
     const l = lerFolha(paraCinza(foto), layout);
     if (!l) { mostrarErro('Não encontrei os 4 quadrados pretos da folha. Enquadre a folha inteira, com boa luz, e fotografe de novo.'); return; }
     leitura = {
@@ -171,6 +196,10 @@ $('#foto').addEventListener('change', async e => {
       valores: l.respostas.map(r => (r.duvidosa ? '' : r.marca)),
     };
     $('#numero').value = l.numero && !l.numeroDuvidoso ? l.numero : '';
+    $('#versao-campo').hidden = estado.prova.versoes.length < 2;
+    $('#versao').innerHTML = '<option value="">Confira</option>' +
+      estado.prova.versoes.map((_, k) => `<option value="${'ABCD'[k]}">Versão ${'ABCD'[k]}</option>`).join('');
+    $('#versao').value = l.versao && !l.versaoDuvidosa ? l.versao : '';
     renderConferencia();
     $('#conferencia').hidden = false;
     $('#conferencia').scrollIntoView();
@@ -184,8 +213,9 @@ function mostrarErro(msg) {
   $('#conferencia').hidden = true; leitura = null;
 }
 
+const versaoAtual = () => versaoDe(estado.prova, $('#versao').value || 'A');
 function situacao(i) {
-  const v = leitura.valores[i], p = estado.prova;
+  const v = leitura.valores[i], p = versaoAtual();
   if (v === '') return 'confira';
   if (p.anuladas.includes(i) || v === p.gabarito[i]) return 'certa';
   return v === 'branco' || v === 'dupla' ? 'confira' : 'errada';
@@ -202,16 +232,18 @@ function renderConferencia() {
 }
 
 function atualizarConferencia() {
-  const p = estado.prova, v = leitura.valores;
+  const p = versaoAtual(), v = leitura.valores;
   const c = corrigir(p.gabarito, p.anuladas, v.map(x => x || 'branco'));
   $('#placar').textContent = `${c.acertos} de ${c.total} acertos · nota ${nota1(c.nota)}`;
   const faltam = v.flatMap((x, i) => (x === '' ? [i + 1] : []));
-  const numeroOk = /^\d{1,2}$/.test($('#numero').value.trim());
+  const numeroOk = /^\d{1,2}$/.test($('#numero').value.trim()), versaoOk = $('#versao').value !== '';
   $('#pendencias').textContent = [
+    versaoOk ? '' : 'Escolha a versão da prova: ela não está clara na folha.',
     faltam.length ? `Confira a leitura da questão ${faltam.join(', ')}: a marcação não está clara.` : '',
     numeroOk ? '' : 'Digite o número de chamada do aluno.',
   ].filter(Boolean).join(' ');
-  $('#salvar-leitura').disabled = faltam.length > 0 || !numeroOk;
+  $('#salvar-leitura').disabled = faltam.length > 0 || !numeroOk || !versaoOk;
+  document.querySelectorAll('#respostas label').forEach((l, i) => { l.className = situacao(i); });
   desenhar();
 }
 
@@ -224,7 +256,7 @@ function desenhar() {
   ctx.lineWidth = Math.max(2, raioPx / 3);
   layout.questoes.forEach((q, i) => {
     const j = LETRAS.indexOf(leitura.valores[i]);
-    const alvo = q[j >= 0 ? j : LETRAS.indexOf(estado.prova.gabarito[i])];
+    const alvo = q[j >= 0 ? j : LETRAS.indexOf(versaoAtual().gabarito[i])];
     const p = aplicar(H, alvo.x, alvo.y);
     ctx.strokeStyle = cor[situacao(i)];
     ctx.beginPath(); ctx.arc(p.x, p.y, raioPx * 1.6, 0, 2 * Math.PI); ctx.stroke();
@@ -239,12 +271,13 @@ $('#respostas').addEventListener('change', e => {
   atualizarConferencia();
 });
 $('#numero').addEventListener('input', atualizarConferencia);
+$('#versao').addEventListener('change', atualizarConferencia);
 $('#descartar').addEventListener('click', () => { $('#conferencia').hidden = true; leitura = null; });
 $('#salvar-leitura').addEventListener('click', async () => {
   const turma = $('#turma').value.trim().toUpperCase(), numero = $('#numero').value.trim().padStart(2, '0');
   if (estado.correcoes[chave(turma, numero)] &&
       !(await perguntar(`O nº ${numero} da turma ${turma} já foi corrigido. Trocar pela correção nova?`, 'Trocar pela nova', 'Manter a anterior'))) return;
-  persistir(registrar(estado, { turma, numero, respostas: [...leitura.valores], editado: leitura.valores.some((v, i) => v !== leitura.original[i]) }));
+  persistir(registrar(estado, { turma, numero, versao: $('#versao').value, respostas: [...leitura.valores], editado: leitura.valores.some((v, i) => v !== leitura.original[i]) }));
   $('#conferencia').hidden = true; leitura = null;
   $('#corrigir-msg').textContent = `Correção do nº ${numero} (${turma}) salva. Fotografe a próxima folha.`;
 });
@@ -258,8 +291,8 @@ function renderResultados() {
     <table><caption>Turma ${t} · ${cs.length} aluno(s)</caption>
       <thead><tr><th>Nº</th><th>Nome</th><th>Acertos</th><th>Nota</th><th><span class="oculto">Ações</span></th></tr></thead>
       <tbody>${cs.map(c => {
-        const r = corrigir(p.gabarito, p.anuladas, c.respostas), k = chave(t, c.numero);
-        return `<tr><td>${c.numero}${c.editado ? ' <span title="Leitura alterada por você" aria-label="leitura alterada por você">✎</span>' : ''}</td>
+        const r = notaDe(p, c), k = chave(t, c.numero);
+        return `<tr><td>${c.numero}${p.versoes.length > 1 ? ` (${c.versao})` : ''}${c.editado ? ' <span title="Leitura alterada por você" aria-label="leitura alterada por você">✎</span>' : ''}</td>
           <td>${esc(nomeDo(estado, t, c.numero))}</td><td>${r.acertos}/${r.total}</td><td>${nota1(r.nota)}</td>
           <td><button data-apagar="${k}" aria-label="Apagar correção do nº ${c.numero}, turma ${t}">Apagar</button></td></tr>`;
       }).join('')}</tbody></table>`).join('');

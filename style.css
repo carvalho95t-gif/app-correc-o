@@ -55,3 +55,5 @@ details#lista summary { min-height: 44px; display: flex; align-items: center; cu
 label.opcao { display: flex; align-items: center; gap: 8px; font-weight: 400; min-height: 44px; }
 label.opcao[hidden] { display: none; }
 #folha.duas { display: flex; gap: 4px; }
+select#prova-versoes, select#versao { width: 100%; font-size: 1rem; min-height: 44px; padding: 8px; border: 1px solid var(--borda); border-radius: 8px; }
+#versoes-gabarito button[aria-pressed=true] { background: #111827; color: white; }

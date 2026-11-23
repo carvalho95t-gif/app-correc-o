@@ -11,7 +11,8 @@ const releitura = wb => XLSX.read(XLSX.write(wb, { type: 'buffer', bookType: 'xl
 const corr = (turma, numero, respostas) => ({ turma, numero, respostas, editado: false });
 
 function estadoExemplo(prova = {}) {
-  let e = definirProva(estadoInicial(), { nome: 'Simulado 1', gabarito: ['A', 'B', 'C', 'D'], anuladas: [], valor: 10, ...prova });
+  const { gabarito = ['A', 'B', 'C', 'D'], anuladas = [], ...resto } = prova;
+  let e = definirProva(estadoInicial(), { nome: 'Simulado 1', valor: 10, versoes: [{ gabarito, anuladas }], ...resto });
   for (const c of [
     corr('2A', '02', ['A', 'B', 'C', 'E']),
     corr('2A', '01', ['A', 'B', 'C', 'E']),
@@ -46,12 +47,12 @@ test('valor da prova diferente de 10 ganha a coluna da nota nessa escala', () =>
 });
 
 test('corrigir uma letra do gabarito recalcula as notas', () => {
-  const e = definirProva(estadoExemplo(), { nome: 'Simulado 1', gabarito: ['A', 'B', 'C', 'E'], anuladas: [], valor: 10 });
+  const e = definirProva(estadoExemplo(), { nome: 'Simulado 1', versoes: [{ gabarito: ['A', 'B', 'C', 'E'], anuladas: [] }], valor: 10 });
   assert.deepEqual(linhas(montarPlanilha(XLSX, e), '2A')[2].slice(5), [4, 100, 10]);
 });
 
 test('mudar o número de questões com correções salvas é recusado', () => {
-  assert.throws(() => definirProva(estadoExemplo(), { nome: 'x', gabarito: ['A', 'B', 'C', 'D', 'E'], anuladas: [], valor: 10 }), /outro número de questões/);
+  assert.throws(() => definirProva(estadoExemplo(), { nome: 'x', versoes: [{ gabarito: ['A', 'B', 'C', 'D', 'E'], anuladas: [] }], valor: 10 }), /outro número de questões/);
 });
 
 test('nome do arquivo sem caracteres inválidos', () => {
@@ -92,7 +93,7 @@ test('Análise: sem discriminação quando todos acertam, e questão fácil', ()
 });
 
 test('Resumo por turma e geral', () => {
-  let e = definirProva(estadoInicial(), { nome: 'x', gabarito: ['A', 'B', 'C', 'D'], anuladas: [], valor: 10 });
+  let e = definirProva(estadoInicial(), { nome: 'x', versoes: [{ gabarito: ['A', 'B', 'C', 'D'], anuladas: [] }], valor: 10 });
   e = registrar(e, corr('3C', '01', ['A', 'B', 'C', 'D']));
   e = registrar(e, corr('3C', '02', ['A', 'B', 'E', 'E']));
   e = registrar(e, corr('3C', '03', ['A', 'E', 'E', 'E']));
@@ -116,4 +117,36 @@ test('lista de chamada sem números segue a ordem das linhas', () => {
   const e = definirLista(estadoExemplo(), '2A', 'Ana\nBia');
   const l = linhas(montarPlanilha(XLSX, e), '2A');
   assert.deepEqual([l[2][1], l[3][1]], ['Ana', 'Bia']);
+});
+
+// ---------- ticket 12: versões da prova ----------
+function estadoVersoes() {
+  let e = definirProva(estadoInicial(), { nome: 'V', valor: 10, versoes: [
+    { gabarito: ['A', 'B', 'C', 'D'], anuladas: [] },
+    { gabarito: ['D', 'C', 'B', 'A'], anuladas: [3] },
+  ] });
+  e = registrar(e, { ...corr('2A', '01', ['A', 'B', 'C', 'D']), versao: 'A' });
+  e = registrar(e, { ...corr('2A', '02', ['D', 'C', 'B', 'E']), versao: 'B' });
+  e = registrar(e, { ...corr('2A', '03', ['A', 'B', 'C', 'D']), versao: 'B' });
+  return e;
+}
+
+test('com versões: a nota usa o gabarito da versão do aluno', () => {
+  const l = linhas(montarPlanilha(XLSX, estadoVersoes()), '2A');
+  assert.deepEqual(l[0].slice(0, 3), ['Nº', 'Versão', 'Q1']);
+  assert.deepEqual(l[1].slice(0, 6), ['Gabarito', 'A', 'A', 'B', 'C', 'D']);
+  assert.deepEqual(l[2].slice(0, 6), ['Gabarito', 'B', 'D', 'C', 'B', 'ANULADA']);
+  assert.deepEqual(l[3].slice(-3), [4, 100, 10]);   // 01, versão A, tudo certo
+  assert.deepEqual(l[4].slice(-3), [4, 100, 10]);   // 02, versão B, Q4 anulada
+  assert.deepEqual(l[5].slice(-3), [1, 25, 2.5]);   // 03, versão B com respostas da A: só a anulada
+});
+
+test('com versões: uma aba de Análise por versão e Resumo por versão', () => {
+  const wb = montarPlanilha(XLSX, estadoVersoes());
+  assert.deepEqual(wb.SheetNames, ['2A', 'Análise A', 'Análise B', 'Resumo']);
+  assert.equal(objetos(wb, 'Análise B')[0]['% acerto geral'], 50);
+  const [t] = objetos(wb, 'Resumo');
+  assert.equal(t['Alunos'], 3);
+  assert.equal(t['3 mais difíceis (A)'], 'Q1, Q2, Q3');
+  assert.equal(t['3 mais fáceis (B)'], 'Q4, Q1, Q2');
 });

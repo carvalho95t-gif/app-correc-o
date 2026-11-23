@@ -38,18 +38,19 @@ test('salvar prova sem nome ou com gabarito faltando explica o que falta', async
 });
 
 // Pinta bolinhas na folha da tela Folha e devolve um print dela, que faz o papel da foto.
-export async function fotografarFolha(page, numero, respostas) {
+export async function fotografarFolha(page, numero, respostas, versao) {
   await page.click('#aba-folha');
   await page.setViewportSize({ width: 1000, height: 1500 });
-  await page.evaluate(({ numero, respostas }) => {
+  await page.evaluate(({ numero, respostas, versao }) => {
     const svg = document.querySelector('#folha svg');
     [...numero].forEach((d, c) => svg.querySelector(`[data-dig="${c}-${d}"]`)?.setAttribute('fill', 'black'));
+    if (versao) svg.querySelector(`[data-ver="${versao}"]`).setAttribute('fill', 'black');
     respostas.forEach((a, q) => {
       if (!a) return;
       const [letra, cor] = a.split(':'); // 'B:#aaa' pinta a bolinha com tinta fraca
       svg.querySelector(`[data-q="${q}"][data-alt="${letra}"]`).setAttribute('fill', cor ?? 'black');
     });
-  }, { numero, respostas });
+  }, { numero, respostas, versao });
   const png = await page.locator('#folha svg').screenshot();
   await page.setViewportSize({ width: 390, height: 844 });
   return png;
@@ -82,8 +83,8 @@ test('foto sem folha mostra o que fazer', async () => {
   await ctx.close();
 });
 
-async function fotografarECorrigir(page, turma, numero, respostas) {
-  const png = await fotografarFolha(page, numero, respostas);
+async function fotografarECorrigir(page, turma, numero, respostas, versao) {
+  const png = await fotografarFolha(page, numero, respostas, versao);
   await page.click('#aba-corrigir');
   await page.fill('#turma', turma);
   await page.setInputFiles('#foto', { name: 'folha.png', mimeType: 'image/png', buffer: png });
@@ -245,5 +246,25 @@ test('duas folhas por página só para provas de até 30 questões', async () =>
   await page.click('#aba-folha');
   assert.ok(await page.isHidden('#opcao-duas'));
   assert.equal(await page.locator('#folha svg').count(), 1);
+  await ctx.close();
+});
+
+// ---------- ticket 12: versões da prova ----------
+test('prova com duas versões: folha com bolinhas de versão e nota pelo gabarito certo', async () => {
+  const { ctx, page } = await abrirApp();
+  await criarProva(page, { gabarito: 'ABCDE', versoes: ['ABCDE', 'EDCBA'] });
+  assert.match(await page.textContent('#prova-msg'), /Prova salva/);
+  await page.click('#aba-folha');
+  assert.equal(await page.locator('#folha svg circle[data-ver]').count(), 2);
+  await fotografarECorrigir(page, '2A', '01', [...'EDCBA'], 'B');
+  assert.equal(await page.inputValue('#versao'), 'B');
+  assert.match(await page.textContent('#placar'), /5 de 5/);
+  await page.click('#salvar-leitura');
+  await fotografarECorrigir(page, '2A', '02', [...'EDCBA'], null);
+  assert.ok(await page.isDisabled('#salvar-leitura'));
+  assert.match(await page.textContent('#pendencias'), /versão/);
+  await page.selectOption('#versao', 'A');
+  assert.match(await page.textContent('#placar'), /1 de 5/);
+  assert.ok(await page.isEnabled('#salvar-leitura'));
   await ctx.close();
 });

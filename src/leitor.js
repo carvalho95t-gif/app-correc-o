@@ -74,7 +74,10 @@ export function lerComMarcadores(cinza, layout, marcadoresPx) {
     return { ...classificar(preenchimentos), preenchimentos };
   });
   const digitos = layout.numero.map(col => avaliar(col.map(preenchimento)));
+  const versao = layout.versao ? avaliar(layout.versao.map(preenchimento)) : { indice: 0, duvidosa: false };
   return {
+    versao: versao.indice >= 0 ? 'ABCD'[versao.indice] : null,
+    versaoDuvidosa: versao.duvidosa,
     numero: digitos.every(d => d.indice >= 0) ? digitos.map(d => d.indice).join('') : null,
     numeroDuvidoso: digitos.some(d => d.duvidosa),
     respostas,

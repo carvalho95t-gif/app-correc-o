@@ -1,6 +1,6 @@
 // Monta a planilha a partir do estado. XLSX é a SheetJS (global no navegador, require nos testes).
 import { corrigir } from './nota.js';
-import { nomeDo } from './estado.js';
+import { nomeDo, versaoDe } from './estado.js';
 
 export function porTurma(estado) {
   const grupos = {};
@@ -12,20 +12,27 @@ export function porTurma(estado) {
 const nomeAba = t => t.replace(/[\\/:*?[\]]/g, '-').slice(0, 31) || 'Turma';
 const numeroBR = n => n.toLocaleString('pt-BR');
 
+const LETRA = 'ABCD';
+export const notaDe = (prova, c) => { const v = versaoDe(prova, c.versao); return corrigir(v.gabarito, v.anuladas, c.respostas); };
+const comGabarito = v => v.gabarito.map((g, i) => (v.anuladas.includes(i) ? 'ANULADA' : g));
+
 function abaTurma(estado, turma, correcoes) {
-  const { prova } = estado, comValor = prova.valor !== 10, comNomes = !!estado.chamadas?.[turma];
+  const { prova } = estado, comValor = prova.valor !== 10, comNomes = !!estado.chamadas?.[turma], comVersoes = prova.versoes.length > 1;
   const nome = c => (comNomes ? [nomeDo(estado, turma, c.numero)] : []);
-  const cabecalho = ['Nº', ...(comNomes ? ['Nome'] : []), ...prova.gabarito.map((_, i) => `Q${i + 1}`), 'Acertos', '%', 'Nota', ...(comValor ? [`Nota (valor ${numeroBR(prova.valor)})`] : [])];
-  const gabarito = ['Gabarito', ...(comNomes ? [''] : []), ...prova.gabarito.map((g, i) => (prova.anuladas.includes(i) ? 'ANULADA' : g))];
+  const n = prova.versoes[0].gabarito.length;
+  const cabecalho = ['Nº', ...(comNomes ? ['Nome'] : []), ...(comVersoes ? ['Versão'] : []), ...[...Array(n)].map((_, i) => `Q${i + 1}`),
+    'Acertos', '%', 'Nota', ...(comValor ? [`Nota (valor ${numeroBR(prova.valor)})`] : [])];
+  const gabaritos = prova.versoes.map((v, i) => ['Gabarito', ...(comNomes ? [''] : []), ...(comVersoes ? [LETRA[i]] : []), ...comGabarito(v)]);
   const alunos = correcoes.map(c => {
-    const r = corrigir(prova.gabarito, prova.anuladas, c.respostas);
+    const r = notaDe(prova, c);
     const extra = comValor ? [Math.round((r.acertos / r.total) * prova.valor * 10) / 10] : [];
-    return [c.numero, ...nome(c), ...c.respostas, r.acertos, r.percentual, r.nota, ...extra];
+    return [c.numero, ...nome(c), ...(comVersoes ? [c.versao ?? 'A'] : []), ...c.respostas, r.acertos, r.percentual, r.nota, ...extra];
   });
-  return [cabecalho, gabarito, ...alunos];
+  return [cabecalho, ...gabaritos, ...alunos];
 }
 
-const acertou = (prova, c, i) => prova.anuladas.includes(i) || c.respostas[i] === prova.gabarito[i];
+// Aqui "v" é uma versão: { gabarito, anuladas }.
+const acertou = (v, c, i) => v.anuladas.includes(i) || c.respostas[i] === v.gabarito[i];
 const pct = (n, d) => (d ? Math.round((n / d) * 100) : 0);
 const soma = v => v.reduce((a, b) => a + b, 0);
 
@@ -40,18 +47,18 @@ function discriminacao(acertos, totais) {
   return Math.round(((mediaDe(true) - mediaDe(false)) / dp) * Math.sqrt(p * (1 - p)) * 100) / 100;
 }
 
-function analise(prova, turmas) {
+function analise(v, turmas) {
   const todos = Object.values(turmas).flat();
-  const totais = todos.map(c => corrigir(prova.gabarito, prova.anuladas, c.respostas).acertos);
-  return prova.gabarito.map((g, i) => {
-    const ok = todos.map(c => acertou(prova, c, i)), geral = pct(ok.filter(Boolean).length, todos.length);
+  const totais = todos.map(c => corrigir(v.gabarito, v.anuladas, c.respostas).acertos);
+  return v.gabarito.map((g, i) => {
+    const ok = todos.map(c => acertou(v, c, i)), geral = pct(ok.filter(Boolean).length, todos.length);
     const conta = v => todos.filter(c => c.respostas[i] === v).length;
     const d = discriminacao(ok, totais);
     return {
       Questão: `Q${i + 1}`,
-      Gabarito: prova.anuladas.includes(i) ? 'ANULADA' : g,
+      Gabarito: v.anuladas.includes(i) ? 'ANULADA' : g,
       '% acerto geral': geral,
-      ...Object.fromEntries(Object.entries(turmas).map(([t, cs]) => [`% acerto ${t}`, pct(cs.filter(c => acertou(prova, c, i)).length, cs.length)])),
+      ...Object.fromEntries(Object.entries(turmas).map(([t, cs]) => [`% acerto ${t}`, pct(cs.filter(c => acertou(v, c, i)).length, cs.length)])),
       A: conta('A'), B: conta('B'), C: conta('C'), D: conta('D'), E: conta('E'), Branco: conta('branco'), Dupla: conta('dupla'),
       Dificuldade: geral >= 85 ? 'Fácil' : geral >= 50 ? 'Média' : 'Difícil',
       Discriminação: d,
@@ -61,14 +68,21 @@ function analise(prova, turmas) {
 }
 
 function resumo(prova, turmas) {
+  const comVersoes = prova.versoes.length > 1;
   const linha = (nome, cs) => {
-    const notas = cs.map(c => corrigir(prova.gabarito, prova.anuladas, c.respostas).nota);
-    const acerto = prova.gabarito.map((_, i) => ({ q: `Q${i + 1}`, n: cs.filter(c => acertou(prova, c, i)).length }));
-    const tres = sentido => [...acerto].sort((a, b) => sentido * (b.n - a.n)).slice(0, 3).map(x => x.q).join(', ');
+    const notas = cs.map(c => notaDe(prova, c).nota);
+    const extremos = prova.versoes.flatMap((v, k) => {
+      const daVersao = cs.filter(c => (c.versao ?? 'A') === LETRA[k]);
+      if (comVersoes && !daVersao.length) return [];
+      const acerto = v.gabarito.map((_, i) => ({ q: `Q${i + 1}`, n: daVersao.filter(c => acertou(v, c, i)).length }));
+      const tres = sentido => [...acerto].sort((a, b) => sentido * (b.n - a.n)).slice(0, 3).map(x => x.q).join(', ');
+      const sufixo = comVersoes ? ` (${LETRA[k]})` : '';
+      return [[`3 mais fáceis${sufixo}`, tres(1)], [`3 mais difíceis${sufixo}`, tres(-1)]];
+    });
     return {
       Turma: nome, Alunos: cs.length,
       Média: Math.round((soma(notas) / cs.length) * 10) / 10, Maior: Math.max(...notas), Menor: Math.min(...notas),
-      '3 mais fáceis': tres(1), '3 mais difíceis': tres(-1),
+      ...Object.fromEntries(extremos),
     };
   };
   return [...Object.entries(turmas).map(([t, cs]) => linha(t, cs)), linha('Geral', Object.values(turmas).flat())];
@@ -79,7 +93,12 @@ export function montarPlanilha(XLSX, estado) {
   for (const [turma, cs] of Object.entries(turmas))
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(abaTurma(estado, turma, cs)), nomeAba(turma));
   if (Object.keys(turmas).length) {
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(analise(prova, turmas)), 'Análise');
+    prova.versoes.forEach((v, k) => {
+      const daVersao = Object.fromEntries(Object.entries(turmas)
+        .map(([t, cs]) => [t, cs.filter(c => (c.versao ?? 'A') === LETRA[k])]).filter(([, cs]) => cs.length));
+      if (Object.keys(daVersao).length)
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(analise(v, daVersao)), prova.versoes.length > 1 ? `Análise ${LETRA[k]}` : 'Análise');
+    });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumo(prova, turmas)), 'Resumo');
   }
   return wb;

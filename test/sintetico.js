@@ -24,6 +24,7 @@ export function cantosPx(layout, opcoes = {}) {
   return layout.marcadores.map(m => aplicar(H, m.x, m.y));
 }
 
+// marcas.versao: 'A'..'D' | null | ['A','B'].
 // marcas.respostas[i]: 'A'..'E' | null (branco) | ['A','B'] (dupla) | {letra, fracao?, tom?} (parcial ou clara)
 export function gerarFoto(layout, marcas, opcoes = {}) {
   const o = { ...PADRAO, ...opcoes };
@@ -40,6 +41,10 @@ export function gerarFoto(layout, marcas, opcoes = {}) {
       const tom = m && m.letra === L[j] ? m.tom : undefined;
       bolhas.push({ ...p, f, tom });
     });
+  });
+  (layout.versao ?? []).forEach((p, v) => {
+    const m = marcas.versao; // 'B' | null | ['A','B']
+    bolhas.push({ ...p, f: m === 'ABCD'[v] || (Array.isArray(m) && m.includes('ABCD'[v])) ? 1 : 0 });
   });
   layout.numero.forEach((col, c) => col.forEach((p, d) => {
     const dig = marcas.numero?.[c];

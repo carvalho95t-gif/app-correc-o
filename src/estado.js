@@ -29,10 +29,15 @@ export function apagarProva(arquivo, id) {
 export const listar = arquivo =>
   Object.entries(arquivo.provas).map(([id, e]) => ({ id, nome: e.prova.nome })).sort((a, b) => a.nome.localeCompare(b.nome));
 
+// Gabarito e anuladas da versão de uma correção ('A' quando a prova tem uma versão só).
+export const versaoDe = (prova, versao = 'A') => prova.versoes['ABCD'.indexOf(versao)];
+
 export function definirProva(estado, prova) {
-  const temCorrecoes = Object.keys(estado.correcoes).length > 0;
-  if (temCorrecoes && estado.prova && estado.prova.gabarito.length !== prova.gabarito.length)
+  const correcoes = Object.values(estado.correcoes), temCorrecoes = correcoes.length > 0;
+  if (temCorrecoes && estado.prova && estado.prova.versoes[0].gabarito.length !== prova.versoes[0].gabarito.length)
     throw new Error('Já há correções com outro número de questões. Baixe a planilha e comece uma nova prova.');
+  const semVersao = correcoes.find(c => 'ABCD'.indexOf(c.versao ?? 'A') >= prova.versoes.length);
+  if (semVersao) throw new Error(`Já há correções da versão ${semVersao.versao}. Não dá para tirar essa versão.`);
   return { ...estado, prova, pendente: estado.pendente || temCorrecoes };
 }
 

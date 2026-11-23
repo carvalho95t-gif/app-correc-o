@@ -15,6 +15,8 @@ export function folhaSVG(layout, nomeProva) {
     `<text x="25" y="88" font-size="3.5">Pinte toda a bolinha com caneta preta ou azul.</text>`,
     `<text x="25" y="96" font-size="3.5">Uma alternativa por questão. Rasura anula a questão.</text>`,
     `<text x="153.5" y="34" font-size="3.5" text-anchor="middle">Nº</text>`,
+    ...(layout.versao ? [`<text x="175" y="34" font-size="3.5" text-anchor="middle">Versão</text>`,
+      ...layout.versao.map((p, v) => bolinha(p, 'ABCD'[v], `data-ver="${'ABCD'[v]}"`))] : []),
     ...layout.numero.flatMap((col, c) => col.map((p, d) => bolinha(p, d, `data-dig="${c}-${d}"`))),
     ...layout.questoes.flatMap((q, i) => [
       `<text x="${q[0].x - 4}" y="${q[0].y + 1.2}" font-size="3.2" text-anchor="end" font-weight="bold">${i + 1}</text>`,

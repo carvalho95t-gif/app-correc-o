@@ -34,12 +34,17 @@ export async function abrirApp() {
   return { ctx, page, erros };
 }
 
-export async function criarProva(page, { nome = 'Teste', gabarito = 'ABCDEABCDE', valor } = {}) {
+export async function criarProva(page, { nome = 'Teste', gabarito = 'ABCDEABCDE', valor, versoes } = {}) {
   await page.click('#aba-prova');
   await page.fill('#prova-nome', nome);
   await page.fill('#prova-num', String(gabarito.length));
   await page.dispatchEvent('#prova-num', 'change');
   if (valor) await page.fill('#prova-valor', String(valor));
-  for (const [i, a] of [...gabarito].entries()) await page.click(`#gabarito button[data-q="${i}"][data-alt="${a}"]`);
+  const gabaritos = versoes ?? [gabarito];
+  if (versoes) await page.selectOption('#prova-versoes', String(versoes.length));
+  for (const [v, g] of gabaritos.entries()) {
+    if (versoes) await page.click(`#versoes-gabarito button[data-versao="${'ABCD'[v]}"]`);
+    for (const [i, a] of [...g].entries()) await page.click(`#gabarito button[data-q="${i}"][data-alt="${a}"]`);
+  }
   await page.click('#salvar-prova');
 }

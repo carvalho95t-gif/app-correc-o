@@ -4,7 +4,7 @@
 
 **Blocked by:** 04, 06, 10
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Seam Leitura: versão lida; em branco ou dupla vira duvidosa e bloqueia o salvar
 - [ ] Seam Planilha: nota pela versão do aluno; uma aba de Análise por versão

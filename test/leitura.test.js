@@ -73,3 +73,20 @@ test('folha impressa em meio tamanho (A5) é lida igual', () => {
   assert.equal(l.numero, '42');
   assert.deepEqual(l.respostas.map(r => r.marca), r30);
 });
+
+// ---------- ticket 12: versões da prova ----------
+test('lê a versão marcada pelo aluno', () => {
+  const lv = montarLayout(20, 3);
+  const l = lerFolha(gerarFoto(lv, { numero: '05', versao: 'C', respostas }, { rotacaoGraus: 3, largura: 900, altura: 1250 }), lv);
+  assert.equal(l.versao, 'C');
+  assert.equal(l.numero, '05');
+  assert.deepEqual(l.respostas.map(r => r.marca), esperado);
+});
+test('versão em branco ou dupla fica sem versão', () => {
+  const lv = montarLayout(20, 2);
+  assert.equal(lerFolha(gerarFoto(lv, { numero: '05', versao: null, respostas }), lv).versao, null);
+  assert.equal(lerFolha(gerarFoto(lv, { numero: '05', versao: ['A', 'B'], respostas }), lv).versao, null);
+});
+test('prova de uma versão só é sempre versão A', () => {
+  assert.equal(lerFolha(gerarFoto(layout, { numero: '05', respostas }), layout).versao, 'A');
+});
