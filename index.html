@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Correção de provas</title>
+  <meta name="theme-color" content="#1d4ed8">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Correção de provas</h1>
+  </header>
+
+  <main>
+    <section id="tela-prova" aria-labelledby="t-prova">
+      <h2 id="t-prova">Prova</h2>
+      <label for="prova-nome">Nome da prova</label>
+      <input id="prova-nome" autocomplete="off" placeholder="Ex.: Simulado 1 – Matemática">
+      <label for="prova-num">Número de questões (1 a 90)</label>
+      <input id="prova-num" type="number" inputmode="numeric" min="1" max="90" value="10">
+      <label for="prova-valor">Valor da prova (pontos)</label>
+      <input id="prova-valor" type="number" inputmode="decimal" min="0.1" step="0.1" value="10">
+      <h3>Gabarito</h3>
+      <p class="dica">Toque na alternativa certa de cada questão. "Anular" conta a questão como certa para todos.</p>
+      <div id="gabarito"></div>
+      <p id="prova-msg" role="status"></p>
+      <div class="acoes"><button id="salvar-prova" class="primario">Salvar prova</button></div>
+    </section>
+
+    <section id="tela-folha" aria-labelledby="t-folha" hidden>
+      <h2 id="t-folha">Folha de respostas</h2>
+      <p id="folha-vazia" class="dica">Salve a prova primeiro. A folha é gerada a partir dela.</p>
+      <div id="folha-pronta" hidden>
+        <p class="dica">Imprima e tire cópias. A mesma folha serve para todos os alunos e todas as turmas.</p>
+        <button id="imprimir" class="primario">Imprimir folha</button>
+        <div id="folha"></div>
+      </div>
+    </section>
+  </main>
+
+  <nav aria-label="Telas">
+    <button id="aba-prova" aria-current="page">Prova</button>
+    <button id="aba-folha">Folha</button>
+  </nav>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
