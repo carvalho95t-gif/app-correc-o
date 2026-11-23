@@ -57,3 +57,46 @@ test('mudar o número de questões com correções salvas é recusado', () => {
 test('nome do arquivo sem caracteres inválidos', () => {
   assert.equal(nomeArquivo({ nome: 'Prova 1/2: "A"' }), 'Prova 1-2- -A-.xlsx');
 });
+
+// ---------- ticket 06: Análise e Resumo ----------
+const objetos = (wb, aba) => XLSX.utils.sheet_to_json(wb.Sheets[aba], { defval: '' });
+
+test('abas Análise e Resumo depois das turmas', () => {
+  assert.deepEqual(montarPlanilha(XLSX, estadoExemplo()).SheetNames, ['2A', '2B', 'Análise', 'Resumo']);
+});
+
+test('Análise: acerto geral e por turma, alternativas marcadas e dificuldade', () => {
+  const [q1, q2] = objetos(releitura(montarPlanilha(XLSX, estadoExemplo())), 'Análise');
+  assert.equal(q1['Questão'], 'Q1'); assert.equal(q1['Gabarito'], 'A');
+  assert.equal(q1['% acerto geral'], 75);
+  assert.equal(q1['% acerto 2A'], 100); assert.equal(q1['% acerto 2B'], 50);
+  assert.equal(q1['A'], 3); assert.equal(q1['Branco'], 1); assert.equal(q1['Dupla'], 0);
+  assert.equal(q1['Dificuldade'], 'Média');
+  assert.equal(q2['% acerto geral'], 50); assert.equal(q2['E'], 2);
+});
+
+test('Análise: discriminação calculada à mão e alerta Revisar', () => {
+  // Totais de acertos: 01=3, 02=3, 03=2, 04=1. Q2 só os dois melhores acertam; Q4 só os dois piores.
+  const a = objetos(montarPlanilha(XLSX, estadoExemplo()), 'Análise');
+  assert.equal(a[1]['Discriminação'], 0.9);   // (3 − 1,5) / 0,829 × 0,5 = 0,905 → 0,9
+  assert.equal(a[1]['Revisar'], '');
+  assert.equal(a[3]['Discriminação'], -0.9);
+  assert.equal(a[3]['Revisar'], 'Revisar');
+});
+
+test('Análise: sem discriminação quando todos acertam, e questão fácil', () => {
+  const a = objetos(montarPlanilha(XLSX, estadoExemplo({ anuladas: [0] })), 'Análise');
+  assert.equal(a[0]['Discriminação'], '');
+  assert.equal(a[0]['Dificuldade'], 'Fácil');
+  assert.equal(a[0]['Gabarito'], 'ANULADA');
+});
+
+test('Resumo por turma e geral', () => {
+  let e = definirProva(estadoInicial(), { nome: 'x', gabarito: ['A', 'B', 'C', 'D'], anuladas: [], valor: 10 });
+  e = registrar(e, corr('3C', '01', ['A', 'B', 'C', 'D']));
+  e = registrar(e, corr('3C', '02', ['A', 'B', 'E', 'E']));
+  e = registrar(e, corr('3C', '03', ['A', 'E', 'E', 'E']));
+  const [t, g] = objetos(montarPlanilha(XLSX, e), 'Resumo');
+  assert.deepEqual(t, { Turma: '3C', Alunos: 3, Média: 5.8, Maior: 10, Menor: 2.5, '3 mais fáceis': 'Q1, Q2, Q3', '3 mais difíceis': 'Q3, Q4, Q2' });
+  assert.equal(g.Turma, 'Geral'); assert.equal(g.Alunos, 3);
+});
