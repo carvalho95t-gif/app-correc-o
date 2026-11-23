@@ -1,7 +1,7 @@
 // Liga as telas aos módulos. A lógica fica em src/.
 import { montarLayout } from './src/layout.js';
 import { folhaSVG } from './src/folha.js';
-import { carregar, salvar, definirProva, estadoInicial, registrar } from './src/estado.js';
+import { carregar, salvar, definirProva, estadoInicial, registrar, chave } from './src/estado.js';
 import { paraCinza, lerFolha, homografia, aplicar } from './src/leitor.js';
 import { corrigir } from './src/nota.js';
 
@@ -20,6 +20,18 @@ function persistir(novo) {
   estado = novo;
   try { if (armazenamento) salvar(armazenamento, estado); }
   catch { alert('Não foi possível salvar no aparelho. Baixe a planilha agora para não perder.'); }
+}
+
+// Pergunta com botões nomeados pela ação; resolve true para "sim".
+function perguntar(msg, sim, nao) {
+  const d = $('#dlg');
+  $('#dlg-msg').textContent = msg; $('#dlg-sim').textContent = sim; $('#dlg-nao').textContent = nao;
+  d.showModal();
+  return new Promise(ok => {
+    $('#dlg-sim').onclick = () => { d.close(); ok(true); };
+    $('#dlg-nao').onclick = () => { d.close(); ok(false); };
+    d.oncancel = () => ok(false);
+  });
 }
 
 // ---------- abas ----------
@@ -186,8 +198,10 @@ $('#respostas').addEventListener('change', e => {
 });
 $('#numero').addEventListener('input', atualizarConferencia);
 $('#descartar').addEventListener('click', () => { $('#conferencia').hidden = true; leitura = null; });
-$('#salvar-leitura').addEventListener('click', () => {
+$('#salvar-leitura').addEventListener('click', async () => {
   const turma = $('#turma').value.trim().toUpperCase(), numero = $('#numero').value.trim().padStart(2, '0');
+  if (estado.correcoes[chave(turma, numero)] &&
+      !(await perguntar(`O nº ${numero} da turma ${turma} já foi corrigido. Trocar pela correção nova?`, 'Trocar pela nova', 'Manter a anterior'))) return;
   persistir(registrar(estado, { turma, numero, respostas: [...leitura.valores], editado: leitura.valores.some((v, i) => v !== leitura.original[i]) }));
   $('#conferencia').hidden = true; leitura = null;
   $('#corrigir-msg').textContent = `Correção do nº ${numero} (${turma}) salva. Fotografe a próxima folha.`;
