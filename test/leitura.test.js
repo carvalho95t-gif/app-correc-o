@@ -19,3 +19,49 @@ test('folha reta: lê número de chamada, alternativas, em branco e dupla marca�
 test('imagem sem folha não tem leitura', () => {
   assert.equal(lerFolha({ width: 400, height: 500, data: new Uint8Array(200000).fill(128) }, layout), null);
 });
+
+// ---------- ticket 03: leitura robusta ----------
+import { rng } from './sintetico.js';
+const layout45 = montarLayout(45);
+const sorteio = rng(42);
+const resp45 = layout45.questoes.map(() => 'ABCDE'[Math.floor(sorteio() * 5)]);
+const confere = opcoes => {
+  const l = lerFolha(gerarFoto(layout45, { numero: '17', respostas: resp45 }, opcoes), layout45);
+  assert.ok(l, 'não achou a folha');
+  assert.deepEqual(l.respostas.map(r => r.marca), resp45);
+  assert.equal(l.numero, '17');
+};
+
+test('folha girada 8°', () => confere({ rotacaoGraus: 8, largura: 1000, altura: 1300 }));
+test('folha inclinada (perspectiva)', () => confere({ perspectiva: 0.15 }));
+test('ruído e luz desigual', () => confere({ ruido: 20, gradiente: 60 }));
+test('fotocópia clara', () => confere({ papel: 200, tinta: 70 }));
+test('fotocópia escura', () => confere({ papel: 180, tinta: 20 }));
+test('folha sobre mesa escura com objetos escuros perto da borda', () => confere({
+  pxPorMm: 3, largura: 1100, altura: 1250, fundo: 40, rotacaoGraus: -4,
+  manchas: [{ x: 5, y: 5, w: 30, h: 30 }, { x: 1050, y: 1180, w: 40, h: 40 }, { x: 1040, y: 20, w: 35, h: 30 }],
+}));
+test('foto de 12 MP lida em menos de 2 s', () => {
+  const foto = gerarFoto(layout45, { numero: '17', respostas: resp45 }, { pxPorMm: 9.5, largura: 3000, altura: 4000 });
+  const t = performance.now();
+  const l = lerFolha(foto, layout45);
+  assert.ok(performance.now() - t < 2000);
+  assert.deepEqual(l.respostas.map(r => r.marca), resp45);
+});
+test('marcação fraca de lápis fica duvidosa, nunca em branco sem aviso', () => {
+  const rs = [...respostas]; rs[0] = { letra: 'A', tom: 160 };
+  assert.equal(lerFolha(gerarFoto(layout, { numero: '05', respostas: rs }), layout).respostas[0].duvidosa, true);
+});
+test('bolinha pintada pela metade fica duvidosa', () => {
+  const rs = [...respostas]; rs[0] = { letra: 'A', fracao: 0.4 };
+  assert.equal(lerFolha(gerarFoto(layout, { numero: '05', respostas: rs }), layout).respostas[0].duvidosa, true);
+});
+test('número de chamada em branco ou duplo fica sem número', () => {
+  assert.equal(lerFolha(gerarFoto(layout, { numero: [0, null], respostas }), layout).numero, null);
+  assert.equal(lerFolha(gerarFoto(layout, { numero: [0, [3, 4]], respostas }), layout).numero, null);
+});
+test('folha com um marcador apagado não tem leitura', () => {
+  const foto = gerarFoto(layout, { numero: '05', respostas });
+  for (let y = 0; y < 120; y++) for (let x = 0; x < 120; x++) foto.data[y * foto.width + x] = 235;
+  assert.equal(lerFolha(foto, layout), null);
+});

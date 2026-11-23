@@ -4,7 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Seam Leitura: girada, em perspectiva, ruído + gradiente de luz, cópia clara e escura, mesa escura com objetos escuros, foto de 12 MP em < 2 s
 - [ ] Marcação de lápis fraca e bolinha pintada pela metade viram duvidosa (nunca em branco silencioso)
