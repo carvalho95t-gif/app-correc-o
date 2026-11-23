@@ -28,3 +28,9 @@ export function registrar(estado, correcao) {
     pendente: true,
   };
 }
+
+export function remover(estado, k) {
+  const { [k]: _, ...resto } = estado.correcoes;
+  return { ...estado, correcoes: resto, pendente: true };
+}
+export const marcarExportado = estado => ({ ...estado, pendente: false });

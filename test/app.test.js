@@ -1,7 +1,8 @@
 // Seam: o app no navegador, como o professor usa.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { abrirApp, criarProva } from './apoio-app.js';
+import { readFile } from 'node:fs/promises';
+import { abrirApp, criarProva, XLSX } from './apoio-app.js';
 
 test('professor cria a prova e vê a folha para imprimir', async () => {
   const { ctx, page, erros } = await abrirApp();
@@ -136,5 +137,25 @@ test('aluno já corrigido: pergunta antes de trocar', async () => {
   await page.click('#salvar-leitura');
   await page.click('#dlg-sim'); // Trocar pela nova
   assert.match(await page.textContent('#corrigir-msg'), /nº 05 \(2A\) salva/);
+  await ctx.close();
+});
+
+test('resultados por turma, baixar planilha e aviso de não exportado', async () => {
+  const { ctx, page } = await abrirApp();
+  await criarProva(page);
+  await fotografarECorrigir(page, '2A', '07', [...'ABDDEABCD', null]);
+  await page.click('#salvar-leitura');
+  assert.ok(await page.isVisible('#aviso-exportar'));
+  await page.click('#aba-resultados');
+  assert.match(await page.locator('#resultados tr', { hasText: '07' }).textContent(), /8\/10.*8,0/s);
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#baixar')]);
+  assert.equal(download.suggestedFilename(), 'Teste.xlsx');
+  const wb = XLSX.read(await readFile(await download.path()), { type: 'buffer' });
+  assert.equal(wb.SheetNames[0], '2A');
+  assert.ok(await page.isHidden('#aviso-exportar'));
+  await page.click('#resultados button[data-apagar]');
+  await page.click('#dlg-sim');
+  assert.ok(await page.isVisible('#resultados-vazio'));
+  assert.ok(await page.isVisible('#aviso-exportar'));
   await ctx.close();
 });

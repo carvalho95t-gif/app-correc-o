@@ -1,7 +1,8 @@
 // Liga as telas aos módulos. A lógica fica em src/.
 import { montarLayout } from './src/layout.js';
 import { folhaSVG } from './src/folha.js';
-import { carregar, salvar, definirProva, estadoInicial, registrar, chave } from './src/estado.js';
+import { carregar, salvar, definirProva, estadoInicial, registrar, chave, remover, marcarExportado } from './src/estado.js';
+import { montarPlanilha, nomeArquivo, porTurma } from './src/planilha.js';
 import { paraCinza, lerFolha, homografia, aplicar } from './src/leitor.js';
 import { corrigir } from './src/nota.js';
 
@@ -20,6 +21,7 @@ function persistir(novo) {
   estado = novo;
   try { if (armazenamento) salvar(armazenamento, estado); }
   catch { alert('Não foi possível salvar no aparelho. Baixe a planilha agora para não perder.'); }
+  $('#aviso-exportar').hidden = !estado.pendente;
 }
 
 // Pergunta com botões nomeados pela ação; resolve true para "sim".
@@ -35,8 +37,8 @@ function perguntar(msg, sim, nao) {
 }
 
 // ---------- abas ----------
-const telas = ['prova', 'folha', 'corrigir'];
-const render = { prova: renderProva, folha: renderFolha, corrigir: renderCorrigir };
+const telas = ['prova', 'folha', 'corrigir', 'resultados'];
+const render = { prova: renderProva, folha: renderFolha, corrigir: renderCorrigir, resultados: renderResultados };
 function mostrar(tela) {
   for (const t of telas) {
     $(`#tela-${t}`).hidden = t !== tela;
@@ -207,4 +209,33 @@ $('#salvar-leitura').addEventListener('click', async () => {
   $('#corrigir-msg').textContent = `Correção do nº ${numero} (${turma}) salva. Fotografe a próxima folha.`;
 });
 
+// ---------- resultados ----------
+function renderResultados() {
+  const p = estado.prova, turmas = porTurma(estado);
+  const vazio = Object.keys(turmas).length === 0;
+  $('#resultados-vazio').hidden = !vazio; $('#baixar').hidden = vazio;
+  $('#resultados').innerHTML = Object.entries(turmas).map(([t, cs]) => `
+    <table><caption>Turma ${t} · ${cs.length} aluno(s)</caption>
+      <thead><tr><th>Nº</th><th>Acertos</th><th>Nota</th><th><span class="oculto">Ações</span></th></tr></thead>
+      <tbody>${cs.map(c => {
+        const r = corrigir(p.gabarito, p.anuladas, c.respostas), k = chave(t, c.numero);
+        return `<tr><td>${c.numero}${c.editado ? ' <span title="Leitura alterada por você" aria-label="leitura alterada por você">✎</span>' : ''}</td>
+          <td>${r.acertos}/${r.total}</td><td>${nota1(r.nota)}</td>
+          <td><button data-apagar="${k}" aria-label="Apagar correção do nº ${c.numero}, turma ${t}">Apagar</button></td></tr>`;
+      }).join('')}</tbody></table>`).join('');
+}
+$('#resultados').addEventListener('click', async e => {
+  const k = e.target.dataset.apagar;
+  if (!k) return;
+  const c = estado.correcoes[k];
+  if (await perguntar(`Apagar a correção do nº ${c.numero} (${c.turma})? Para corrigir de novo, fotografe a folha outra vez.`, 'Apagar correção', 'Manter')) {
+    persistir(remover(estado, k)); renderResultados();
+  }
+});
+$('#baixar').addEventListener('click', () => {
+  XLSX.writeFile(montarPlanilha(XLSX, estado), nomeArquivo(estado.prova));
+  persistir(marcarExportado(estado));
+});
+
+persistir(estado);
 mostrar(estado.prova ? 'corrigir' : 'prova');

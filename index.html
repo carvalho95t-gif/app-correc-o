@@ -10,6 +10,7 @@
 <body>
   <header>
     <h1>Correção de provas</h1>
+    <p id="aviso-exportar" role="status" hidden>Há correções que ainda não estão na planilha. Baixe a planilha em Resultados para não perder.</p>
   </header>
 
   <main>
@@ -66,12 +67,19 @@
         </div>
       </div>
     </section>
+    <section id="tela-resultados" aria-labelledby="t-resultados" hidden>
+      <h2 id="t-resultados">Resultados</h2>
+      <p id="resultados-vazio" class="dica">Nenhuma correção ainda. Fotografe a primeira folha na aba Corrigir.</p>
+      <div id="resultados"></div>
+      <button id="baixar" class="primario">Baixar planilha</button>
+    </section>
   </main>
 
   <nav aria-label="Telas">
     <button id="aba-prova" aria-current="page">Prova</button>
     <button id="aba-folha">Folha</button>
     <button id="aba-corrigir">Corrigir</button>
+    <button id="aba-resultados">Resultados</button>
   </nav>
 
   <dialog id="dlg">
@@ -79,6 +87,7 @@
     <div class="acoes"><button id="dlg-sim" class="primario"></button><button id="dlg-nao"></button></div>
   </dialog>
 
+  <script src="vendor/xlsx.mini.min.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>
