@@ -40,6 +40,14 @@ Um app que abre por um link no navegador do celular, sem instalar nada e sem ser
 26. As a professor, I want a Resumo aba with alunos, média, maior and menor nota and the 3 easiest and 3 hardest questões per turma and overall, so that I get the big picture fast.
 27. As a professor, I want a banner while there are correções not in the planilha, so that I remember to export (the phone may erase site data).
 28. As a professor, I want the app to keep working without internet after the first visit, so that I can correct in a classroom with weak signal.
+30. As a professor, I want to paste the turma's lista de chamada (one name per line, optionally starting with the número), so that the planilha and the results show each aluno's name next to the número.
+31. As a professor, I want to set the valor da prova (e.g. 3 pontos), so that the planilha shows the nota in that scale besides 0–10.
+32. As a professor, I want to print two folhas per A4 page for provas with up to 30 questões, so that I save paper.
+33. As a professor, I want to keep several provas in the app and switch between them, so that I can correct different provas in the same period.
+34. As a professor, I want the prova being corrected shown clearly on the Corrigir screen, so that I don't correct a folha against the wrong prova.
+35. As a professor, I want to restore a prova and its correções by importing a planilha the app exported, so that I don't lose work if the phone erases the app's data.
+36. As a professor, I want to create a prova with up to 4 versões (A–D), each with its own gabarito, so that neighbours can't copy.
+37. As a professor, I want the aluno to mark the versão on the folha, and the app to require me to choose it when it's blank or unclear, so that each folha is graded against the right gabarito.
 29. As a professor, I want large controls and readable text on a small screen, usable with one hand, so that correcting 40 folhas isn't tiring.
 
 ## Implementation Decisions
@@ -52,6 +60,12 @@ Um app que abre por um link no navegador do celular, sem instalar nada e sem ser
   - **Estado:** prova + correções keyed by turma + número de chamada, a "pendente de exportar" flag, and persistence in the browser's local storage. Pure functions that never mutate the input.
   - **Planilha:** from the estado to a workbook with the turma abas, Análise and Resumo. Notas are computed at export from the saved marcações, so fixing the gabarito recalculates everything.
 - The UI module only wires the screens (Prova, Folha, Corrigir/Conferência, Resultados) to these modules.
+- **Nomes:** a lista de chamada is stored per turma inside the prova; line N without a number means número N; a line starting with a number uses that número.
+- **Valor da prova:** default 10. When different from 10, turma abas get an extra column "Nota (valor X)".
+- **Duas por página:** for ≤ 30 questões the print view can place two copies of the folha, scaled to A5, side by side on an A4 landscape page. Reading needs no change because it works from the marcadores, whatever the scale.
+- **Várias provas:** the estado holds a list of provas, each with its own correções, lista de chamada and pendente flag, plus which one is active. No code on the folha identifies the prova: the professor picks it, and the Corrigir screen shows its name.
+- **Restaurar:** the planilha carries a "Dados" aba with the prova and its correções serialized (split across cells to respect Excel's cell limit). Importing a planilha rebuilds that prova; if a prova with the same name exists, the professor chooses to replace it or keep both.
+- **Versões:** 1 to 4 versões (A–D), each with its own gabarito and anuladas. With more than one versão the folha prints a "Versão" bubble column. A correção stores its versão; nota uses that versão's gabarito. With versões, the planilha has one Análise aba per versão, and Resumo lists the easiest/hardest questões per versão.
 - Photos are scaled down to at most 2000 px before reading. Only marcações are saved, never photos.
 - Dificuldade: Fácil ≥ 85% de acerto, Média 50–84%, Difícil < 50%. Discriminação: point-biserial correlation between getting the questão right and the aluno's total acertos, with 2 decimals; "Revisar" below 0.2; empty when fewer than 2 alunos or everyone got it right/wrong.
 
@@ -59,17 +73,18 @@ Um app que abre por um link no navegador do celular, sem instalar nada e sem ser
 
 - Good tests check external behavior through the agreed seams only, with expected values from worked examples, never recomputed the way the code does.
 - Agreed seams (confirmed by Tiago on 2026-11-23):
-  1. **Leitura:** image in, número de chamada and marcações out. Tested with synthetic photos generated from the folha geometry: straight, rotated, in perspective, with noise and light gradient, light and dark photocopies, on a dark table with dark objects near the edges, a 12 MP photo, light pencil marks, half-filled bubbles, blank and double número de chamada, and images without a folha.
-  2. **Planilha:** prova + correções in, workbook out (abas, notas, Análise, Resumo), read back with SheetJS. Includes recalculation after a gabarito change and refusal to change the number of questões.
+  1. **Leitura:** image in, número de chamada and marcações out. Tested with synthetic photos generated from the folha geometry: straight, rotated, in perspective, with noise and light gradient, light and dark photocopies, on a dark table with dark objects near the edges, a 12 MP photo, light pencil marks, half-filled bubbles, blank and double número de chamada, the versão bubbles, a folha printed at half size (two per A4), and images without a folha.
+  2. **Planilha:** prova + correções in, workbook out (abas, notas, Análise, Resumo, Dados), read back with SheetJS; and the reverse, workbook in, prova + correções out (restore). Includes recalculation after a gabarito change, refusal to change the number of questões, nomes, valor da prova and versões.
   3. **App no navegador:** Playwright with a phone viewport runs the whole flow: create prova, render folha, fill bubbles, screenshot as the photo, correct, conferência, save, results, download planilha, blocked save without número de chamada, error message without folha, and offline reload.
 - Test runner: Node's built-in `node --test`; Playwright is preinstalled in the environment.
 
 ## Out of Scope
 
-- TRI scoring; multiple versions of the prova; two folhas per A4 page.
+- TRI scoring.
+- A PDF with each aluno's corrected folha (devolutiva) — Tiago declined it on 2026-11-23.
 - Reading folhas from other systems or pre-existing folhas.
 - Accounts, login, server, syncing between devices.
-- Sending notas to SEGES or to alunos; storing alunos' names.
+- Sending notas to SEGES or to alunos.
 - Storing photos.
 
 ## Further Notes
