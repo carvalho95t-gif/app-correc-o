@@ -237,5 +237,7 @@ $('#baixar').addEventListener('click', () => {
   persistir(marcarExportado(estado));
 });
 
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { /* segue funcionando online */ });
+
 persistir(estado);
 mostrar(estado.prova ? 'corrigir' : 'prova');

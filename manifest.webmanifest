@@ -1,0 +1,9 @@
+{
+  "name": "Correção de provas",
+  "short_name": "Correção",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#1d4ed8"
+}

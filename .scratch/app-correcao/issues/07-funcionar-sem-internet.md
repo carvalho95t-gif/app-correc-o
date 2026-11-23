@@ -4,6 +4,6 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Teste no app: abrir, ficar offline, recarregar, a prova continua lá e a folha aparece

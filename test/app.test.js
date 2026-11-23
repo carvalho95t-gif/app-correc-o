@@ -159,3 +159,17 @@ test('resultados por turma, baixar planilha e aviso de não exportado', async ()
   assert.ok(await page.isVisible('#aviso-exportar'));
   await ctx.close();
 });
+
+test('funciona sem internet depois da primeira abertura', async () => {
+  const { ctx, page } = await abrirApp();
+  await criarProva(page);
+  await page.evaluate(() => Promise.race([navigator.serviceWorker.ready, new Promise((_, n) => setTimeout(() => n(new Error('sem service worker')), 5000))]));
+  await page.reload(); // a página passa a ser controlada pelo service worker
+  await ctx.setOffline(true);
+  await page.reload();
+  await page.click('#aba-prova');
+  assert.equal(await page.inputValue('#prova-nome'), 'Teste');
+  await page.click('#aba-folha');
+  assert.ok(await page.isVisible('#folha svg'));
+  await ctx.close();
+});
