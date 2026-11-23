@@ -216,3 +216,18 @@ test('apagar uma prova avisa quando há correções fora da planilha', async () 
   assert.equal(await page.locator('#prova-ativa option').count(), 1); // só "Nova prova"
   await ctx.close();
 });
+
+// ---------- ticket 08: nomes dos alunos ----------
+test('lista de chamada mostra o nome do aluno nos resultados', async () => {
+  const { ctx, page } = await abrirApp();
+  await criarProva(page);
+  await fotografarECorrigir(page, '2A', '02', [...'ABCDEABCDE']);
+  await page.click('#salvar-leitura');
+  await page.click('#aba-resultados');
+  await page.click('#lista summary');
+  await page.fill('#lista-turma', '2a');
+  await page.fill('#lista-nomes', 'Ana\nBruno');
+  await page.click('#salvar-lista');
+  assert.match(await page.locator('#resultados tbody tr').textContent(), /02.*Bruno/s);
+  await ctx.close();
+});

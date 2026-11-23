@@ -1,5 +1,6 @@
 // Monta a planilha a partir do estado. XLSX é a SheetJS (global no navegador, require nos testes).
 import { corrigir } from './nota.js';
+import { nomeDo } from './estado.js';
 
 export function porTurma(estado) {
   const grupos = {};
@@ -11,14 +12,15 @@ export function porTurma(estado) {
 const nomeAba = t => t.replace(/[\\/:*?[\]]/g, '-').slice(0, 31) || 'Turma';
 const numeroBR = n => n.toLocaleString('pt-BR');
 
-function abaTurma(prova, correcoes) {
-  const comValor = prova.valor !== 10;
-  const cabecalho = ['Nº', ...prova.gabarito.map((_, i) => `Q${i + 1}`), 'Acertos', '%', 'Nota', ...(comValor ? [`Nota (valor ${numeroBR(prova.valor)})`] : [])];
-  const gabarito = ['Gabarito', ...prova.gabarito.map((g, i) => (prova.anuladas.includes(i) ? 'ANULADA' : g))];
+function abaTurma(estado, turma, correcoes) {
+  const { prova } = estado, comValor = prova.valor !== 10, comNomes = !!estado.chamadas?.[turma];
+  const nome = c => (comNomes ? [nomeDo(estado, turma, c.numero)] : []);
+  const cabecalho = ['Nº', ...(comNomes ? ['Nome'] : []), ...prova.gabarito.map((_, i) => `Q${i + 1}`), 'Acertos', '%', 'Nota', ...(comValor ? [`Nota (valor ${numeroBR(prova.valor)})`] : [])];
+  const gabarito = ['Gabarito', ...(comNomes ? [''] : []), ...prova.gabarito.map((g, i) => (prova.anuladas.includes(i) ? 'ANULADA' : g))];
   const alunos = correcoes.map(c => {
     const r = corrigir(prova.gabarito, prova.anuladas, c.respostas);
     const extra = comValor ? [Math.round((r.acertos / r.total) * prova.valor * 10) / 10] : [];
-    return [c.numero, ...c.respostas, r.acertos, r.percentual, r.nota, ...extra];
+    return [c.numero, ...nome(c), ...c.respostas, r.acertos, r.percentual, r.nota, ...extra];
   });
   return [cabecalho, gabarito, ...alunos];
 }
@@ -75,7 +77,7 @@ function resumo(prova, turmas) {
 export function montarPlanilha(XLSX, estado) {
   const wb = XLSX.utils.book_new(), turmas = porTurma(estado), { prova } = estado;
   for (const [turma, cs] of Object.entries(turmas))
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(abaTurma(prova, cs)), nomeAba(turma));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(abaTurma(estado, turma, cs)), nomeAba(turma));
   if (Object.keys(turmas).length) {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(analise(prova, turmas)), 'Análise');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumo(prova, turmas)), 'Resumo');

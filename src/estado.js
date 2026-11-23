@@ -52,3 +52,16 @@ export function remover(estado, k) {
   return { ...estado, correcoes: resto, pendente: true };
 }
 export const marcarExportado = estado => ({ ...estado, pendente: false });
+
+// Lista de chamada colada pelo professor: linha N vale para o número N, ou para o número escrito no início.
+export function lerLista(texto) {
+  const nomes = {};
+  texto.split('\n').map(l => l.trim()).filter(Boolean).forEach((linha, i) => {
+    const m = linha.match(/^(\d{1,2})\s*[-.–)]?\s+(.+)$/);
+    nomes[String(m ? +m[1] : i + 1).padStart(2, '0')] = m ? m[2].trim() : linha;
+  });
+  return nomes;
+}
+export const definirLista = (estado, turma, texto) =>
+  ({ ...estado, chamadas: { ...estado.chamadas, [turma.trim().toUpperCase()]: lerLista(texto) }, pendente: true });
+export const nomeDo = (estado, turma, numero) => estado.chamadas?.[turma]?.[numero] ?? '';

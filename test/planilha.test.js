@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { montarPlanilha, nomeArquivo } from '../src/planilha.js';
-import { definirProva, registrar, estadoInicial } from '../src/estado.js';
+import { definirProva, registrar, estadoInicial, definirLista } from '../src/estado.js';
 
 const XLSX = createRequire(import.meta.url)('../vendor/xlsx.mini.min.js');
 const linhas = (wb, aba) => XLSX.utils.sheet_to_json(wb.Sheets[aba], { header: 1, defval: '' });
@@ -99,4 +99,21 @@ test('Resumo por turma e geral', () => {
   const [t, g] = objetos(montarPlanilha(XLSX, e), 'Resumo');
   assert.deepEqual(t, { Turma: '3C', Alunos: 3, Média: 5.8, Maior: 10, Menor: 2.5, '3 mais fáceis': 'Q1, Q2, Q3', '3 mais difíceis': 'Q3, Q4, Q2' });
   assert.equal(g.Turma, 'Geral'); assert.equal(g.Alunos, 3);
+});
+
+// ---------- ticket 08: nomes dos alunos ----------
+test('lista de chamada: linha N vale para o número N, ou para o número escrito no início', () => {
+  const e = definirLista(estadoExemplo(), '2b', 'Ana Souza\n\n04 - Bruno Lima\n');
+  const l = linhas(montarPlanilha(XLSX, e), '2B');
+  assert.deepEqual(l[0].slice(0, 3), ['Nº', 'Nome', 'Q1']);
+  assert.deepEqual(l[1].slice(0, 3), ['Gabarito', '', 'A']);
+  assert.deepEqual(l[2].slice(0, 2), ['03', '']);           // sem nome na lista
+  assert.deepEqual(l[3].slice(0, 3), ['04', 'Bruno Lima', 'branco']);
+  assert.deepEqual(linhas(montarPlanilha(XLSX, e), '2A')[0].slice(0, 2), ['Nº', 'Q1']); // turma sem lista
+});
+
+test('lista de chamada sem números segue a ordem das linhas', () => {
+  const e = definirLista(estadoExemplo(), '2A', 'Ana\nBia');
+  const l = linhas(montarPlanilha(XLSX, e), '2A');
+  assert.deepEqual([l[2][1], l[3][1]], ['Ana', 'Bia']);
 });

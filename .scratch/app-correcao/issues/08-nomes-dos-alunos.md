@@ -4,7 +4,7 @@
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Linha N sem número = número N; linha começando com número usa esse número
 - [ ] Seam Planilha: coluna Nome nas abas de turma

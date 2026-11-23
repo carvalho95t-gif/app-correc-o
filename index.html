@@ -80,6 +80,16 @@
       <p id="resultados-vazio" class="dica">Nenhuma correção ainda. Fotografe a primeira folha na aba Corrigir.</p>
       <div id="resultados"></div>
       <button id="baixar" class="primario">Baixar planilha</button>
+      <details id="lista">
+        <summary>Lista de chamada (nomes dos alunos)</summary>
+        <p class="dica">Cole um nome por linha, na ordem da chamada. Se preferir, comece a linha pelo número (ex.: "07 Ana Souza").</p>
+        <label for="lista-turma">Turma</label>
+        <input id="lista-turma" autocomplete="off" placeholder="Ex.: 2A">
+        <label for="lista-nomes">Nomes</label>
+        <textarea id="lista-nomes" rows="8"></textarea>
+        <p id="lista-msg" role="status"></p>
+        <button id="salvar-lista">Salvar lista</button>
+      </details>
     </section>
   </main>
 

@@ -48,3 +48,6 @@ dialog { border: 0; border-radius: 12px; max-width: 360px; }
 }
 select#prova-ativa { width: 100%; font-size: 1rem; min-height: 44px; padding: 8px; border: 1px solid var(--borda); border-radius: 8px; }
 .destaque { background: #dbeafe; color: #1e3a8a; padding: 8px 12px; border-radius: 8px; font-weight: 600; }
+textarea { width: 100%; font: inherit; padding: 10px; border: 1px solid var(--borda); border-radius: 8px; }
+details#lista { margin: 16px 0; background: white; padding: 8px 12px; border-radius: 8px; border: 1px solid #e5e7eb; }
+details#lista summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }

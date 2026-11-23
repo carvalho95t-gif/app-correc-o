@@ -2,7 +2,7 @@
 import { montarLayout } from './src/layout.js';
 import { folhaSVG } from './src/folha.js';
 import { carregar, salvar, definirProva, arquivoInicial, ativo, comAtivo, escolher, novaProva, apagarProva, listar,
-  registrar, chave, remover, marcarExportado } from './src/estado.js';
+  registrar, chave, remover, marcarExportado, definirLista, nomeDo } from './src/estado.js';
 import { montarPlanilha, nomeArquivo, porTurma } from './src/planilha.js';
 import { paraCinza, lerFolha, homografia, aplicar } from './src/leitor.js';
 import { corrigir } from './src/nota.js';
@@ -249,11 +249,11 @@ function renderResultados() {
   $('#resultados-vazio').hidden = !vazio; $('#baixar').hidden = vazio;
   $('#resultados').innerHTML = Object.entries(turmas).map(([t, cs]) => `
     <table><caption>Turma ${t} · ${cs.length} aluno(s)</caption>
-      <thead><tr><th>Nº</th><th>Acertos</th><th>Nota</th><th><span class="oculto">Ações</span></th></tr></thead>
+      <thead><tr><th>Nº</th><th>Nome</th><th>Acertos</th><th>Nota</th><th><span class="oculto">Ações</span></th></tr></thead>
       <tbody>${cs.map(c => {
         const r = corrigir(p.gabarito, p.anuladas, c.respostas), k = chave(t, c.numero);
         return `<tr><td>${c.numero}${c.editado ? ' <span title="Leitura alterada por você" aria-label="leitura alterada por você">✎</span>' : ''}</td>
-          <td>${r.acertos}/${r.total}</td><td>${nota1(r.nota)}</td>
+          <td>${esc(nomeDo(estado, t, c.numero))}</td><td>${r.acertos}/${r.total}</td><td>${nota1(r.nota)}</td>
           <td><button data-apagar="${k}" aria-label="Apagar correção do nº ${c.numero}, turma ${t}">Apagar</button></td></tr>`;
       }).join('')}</tbody></table>`).join('');
 }
@@ -264,6 +264,17 @@ $('#resultados').addEventListener('click', async e => {
   if (await perguntar(`Apagar a correção do nº ${c.numero} (${c.turma})? Para corrigir de novo, fotografe a folha outra vez.`, 'Apagar correção', 'Manter')) {
     persistir(remover(estado, k)); renderResultados();
   }
+});
+$('#lista-turma').addEventListener('input', e => {
+  const nomes = estado.chamadas?.[e.target.value.trim().toUpperCase()];
+  $('#lista-nomes').value = nomes ? Object.entries(nomes).map(([n, nome]) => `${n} ${nome}`).join('\n') : '';
+});
+$('#salvar-lista').addEventListener('click', () => {
+  const turma = $('#lista-turma').value.trim();
+  if (!turma) { $('#lista-msg').textContent = 'Digite a turma da lista.'; return; }
+  persistir(definirLista(estado, turma, $('#lista-nomes').value));
+  $('#lista-msg').textContent = `Lista da turma ${turma.toUpperCase()} salva.`;
+  renderResultados();
 });
 $('#baixar').addEventListener('click', () => {
   XLSX.writeFile(montarPlanilha(XLSX, estado), nomeArquivo(estado.prova));
