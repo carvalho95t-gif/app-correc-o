@@ -128,8 +128,15 @@ $('#salvar-prova').addEventListener('click', () => {
 function renderFolha() {
   const p = estado.prova;
   $('#folha-vazia').hidden = !!p; $('#folha-pronta').hidden = !p;
-  if (p) $('#folha').innerHTML = folhaSVG(montarLayout(p.gabarito.length), p.nome);
+  if (!p) return;
+  const cabeDuas = p.gabarito.length <= 30, duas = cabeDuas && $('#duas-por-pagina').checked;
+  $('#opcao-duas').hidden = !cabeDuas;
+  const svg = folhaSVG(montarLayout(p.gabarito.length), p.nome);
+  $('#folha').innerHTML = duas ? svg + svg : svg;
+  $('#folha').classList.toggle('duas', duas);
+  $('#pagina').textContent = `@page { size: A4 ${duas ? 'landscape' : 'portrait'}; margin: 0; }`;
 }
+$('#duas-por-pagina').addEventListener('change', renderFolha);
 $('#imprimir').addEventListener('click', () => window.print());
 
 // ---------- corrigir ----------

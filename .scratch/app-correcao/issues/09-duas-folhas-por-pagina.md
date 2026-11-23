@@ -4,7 +4,7 @@
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Seam Leitura: folha em tamanho A5 é lida igual
 - [ ] Opção só aparece com até 30 questões

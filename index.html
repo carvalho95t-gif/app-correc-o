@@ -7,6 +7,7 @@
   <meta name="theme-color" content="#1d4ed8">
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.webmanifest">
+  <style id="pagina">@page { size: A4; margin: 0; }</style>
 </head>
 <body>
   <header>
@@ -41,6 +42,7 @@
       <p id="folha-vazia" class="dica">Salve a prova primeiro. A folha é gerada a partir dela.</p>
       <div id="folha-pronta" hidden>
         <p class="dica">Imprima e tire cópias. A mesma folha serve para todos os alunos e todas as turmas.</p>
+        <label id="opcao-duas" class="opcao"><input type="checkbox" id="duas-por-pagina"> Duas folhas por página (corte a folha ao meio)</label>
         <button id="imprimir" class="primario">Imprimir folha</button>
         <div id="folha"></div>
       </div>

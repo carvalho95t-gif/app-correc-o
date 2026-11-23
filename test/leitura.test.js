@@ -65,3 +65,11 @@ test('folha com um marcador apagado não tem leitura', () => {
   for (let y = 0; y < 120; y++) for (let x = 0; x < 120; x++) foto.data[y * foto.width + x] = 235;
   assert.equal(lerFolha(foto, layout), null);
 });
+
+// ---------- ticket 09: duas folhas por A4 ----------
+test('folha impressa em meio tamanho (A5) é lida igual', () => {
+  const l30 = montarLayout(30), r30 = l30.questoes.map((_, i) => 'ABCDE'[i % 5]);
+  const l = lerFolha(gerarFoto(l30, { numero: '42', respostas: r30 }, { pxPorMm: 4 * 0.707 * 0.9, largura: 700, altura: 900, fundo: 90, rotacaoGraus: 3 }), l30);
+  assert.equal(l.numero, '42');
+  assert.deepEqual(l.respostas.map(r => r.marca), r30);
+});

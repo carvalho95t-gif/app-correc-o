@@ -231,3 +231,19 @@ test('lista de chamada mostra o nome do aluno nos resultados', async () => {
   assert.match(await page.locator('#resultados tbody tr').textContent(), /02.*Bruno/s);
   await ctx.close();
 });
+
+// ---------- ticket 09: duas folhas por A4 ----------
+test('duas folhas por página só para provas de até 30 questões', async () => {
+  const { ctx, page } = await abrirApp();
+  await criarProva(page);
+  await page.click('#aba-folha');
+  await page.check('#duas-por-pagina');
+  assert.equal(await page.locator('#folha svg').count(), 2);
+  await page.click('#aba-prova');
+  await page.click('#nova-prova');
+  await criarProva(page, { nome: 'Longa', gabarito: 'A'.repeat(31) });
+  await page.click('#aba-folha');
+  assert.ok(await page.isHidden('#opcao-duas'));
+  assert.equal(await page.locator('#folha svg').count(), 1);
+  await ctx.close();
+});
