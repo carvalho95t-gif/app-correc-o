@@ -17,3 +17,14 @@ export function definirProva(estado, prova) {
     throw new Error('Já há correções com outro número de questões. Baixe a planilha e comece uma nova prova.');
   return { ...estado, prova, pendente: estado.pendente || temCorrecoes };
 }
+
+export const chave = (turma, numero) => `${turma.trim().toUpperCase()}|${numero}`;
+
+export function registrar(estado, correcao) {
+  const turma = correcao.turma.trim().toUpperCase();
+  return {
+    ...estado,
+    correcoes: { ...estado.correcoes, [chave(turma, correcao.numero)]: { ...correcao, turma, salvoEm: new Date().toISOString() } },
+    pendente: true,
+  };
+}

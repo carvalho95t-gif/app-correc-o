@@ -37,11 +37,41 @@
         <div id="folha"></div>
       </div>
     </section>
+    <section id="tela-corrigir" aria-labelledby="t-corrigir" hidden>
+      <h2 id="t-corrigir">Corrigir</h2>
+      <p id="corrigir-vazio" class="dica">Salve a prova primeiro para poder corrigir.</p>
+      <div id="corrigir-pronto" hidden>
+        <label for="turma">Turma</label>
+        <input id="turma" autocomplete="off" placeholder="Ex.: 2A">
+        <label for="foto" class="botao primario">Fotografar folha</label>
+        <input id="foto" type="file" accept="image/*" capture="environment" class="oculto">
+        <p class="dica">Enquadre a folha inteira, com os 4 quadrados pretos visíveis, sobre uma mesa e com boa luz.</p>
+        <p id="lendo" role="status" hidden>Lendo a folha…</p>
+        <p id="erro-leitura" role="alert" hidden></p>
+        <p id="corrigir-msg" role="status"></p>
+
+        <div id="conferencia" hidden>
+          <h3>Confira a leitura</h3>
+          <canvas id="canvas" aria-label="Foto da folha com as marcações lidas"></canvas>
+          <p class="legenda"><span class="ok">●</span> certa <span class="erro">●</span> errada <span class="aviso">●</span> confira</p>
+          <label for="numero">Número de chamada</label>
+          <input id="numero" inputmode="numeric" maxlength="2" autocomplete="off">
+          <p id="placar" aria-live="polite"></p>
+          <p id="pendencias" class="dica"></p>
+          <div id="respostas"></div>
+          <div class="acoes">
+            <button id="salvar-leitura" class="primario">Salvar correção</button>
+            <button id="descartar">Descartar foto</button>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <nav aria-label="Telas">
     <button id="aba-prova" aria-current="page">Prova</button>
     <button id="aba-folha">Folha</button>
+    <button id="aba-corrigir">Corrigir</button>
   </nav>
 
   <script type="module" src="app.js"></script>
