@@ -75,3 +75,4 @@ details#caderno-editor { margin: 16px 0; background: white; padding: 8px 12px; b
 .caderno-pagina img { max-width: 100%; }
 .miniatura { display: block; max-width: 160px; margin: 6px 0; border: 1px solid var(--borda); }
 .folha-impressa svg { width: 100%; height: auto; border: 1px solid var(--borda); }
+#embaralhar-nota { white-space: pre-line; }

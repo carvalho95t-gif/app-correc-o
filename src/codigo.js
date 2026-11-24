@@ -16,6 +16,7 @@ const deBits = bits => bits.reduce((n, b) => n * 2 + (b ? 1 : 0), 0);
 
 export function codificar(prova, versao) {
   if (!(Number.isInteger(prova) && prova >= 1 && prova < 4096)) throw new RangeError('Código da prova deve ser de 1 a 4095');
+  if (versao && !VERSOES.includes(versao)) throw new RangeError('Versão deve ser de A a D');
   const dados = [...paraBits(prova, 12), ...paraBits(versao ? VERSOES.indexOf(versao) + 1 : 0, 3)];
   return [...dados, ...paraBits(crc5(dados), 5)];
 }

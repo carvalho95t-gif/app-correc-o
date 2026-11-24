@@ -89,6 +89,9 @@ function renderProva() {
   $('#embaralhar-questoes').checked = !!emb.questoes; $('#embaralhar-alternativas').checked = !!emb.alternativas;
   $('#embaralhar-de-novo').hidden = !embaralhando(rascunho);
   $('#embaralhar-nota').hidden = !embaralhando(rascunho);
+  const salva = estado.prova && ehEmbaralhada(estado.prova) ? estado.prova : null; // gabaritos gerados, só para ver
+  $('#embaralhar-nota').textContent = 'O gabarito acima é o da versão A. As outras versões são geradas pelo app' +
+    (salva ? ':\n' + salva.versoes.slice(1).map((v, k) => `Versão ${'BCD'[k]}: ${v.gabarito.map((g, i) => `${i + 1} ${v.anuladas.includes(i) ? 'anulada' : g}`).join(', ')}`).join('\n') : ' quando você salvar a prova.');
   if (embaralhando(rascunho)) $('#versoes-gabarito').hidden = true;
   $('#areas').innerHTML = (rascunho.areas ?? []).map((a, k) => `
     <div class="pesos" data-area="${k}">
@@ -154,7 +157,7 @@ $('#caderno-questoes').addEventListener('change', async e => {
   document.querySelectorAll(`#gabarito button[data-q="${i}"]`).forEach(b => b.setAttribute('aria-pressed', b.dataset.alt === e.target.value));
 });
 const temCaderno = p => !!p.caderno?.questoes.some(q => q.enunciado.trim());
-const embaralhando = p => p.versoes.length > 1 && !!(p.caderno?.embaralhar?.questoes || p.caderno?.embaralhar?.alternativas);
+const embaralhando = p => p.versoes.length > 1 && temCaderno(p) && !!(p.caderno.embaralhar?.questoes || p.caderno.embaralhar?.alternativas);
 for (const [id, campo] of [['#embaralhar-questoes', 'questoes'], ['#embaralhar-alternativas', 'alternativas']])
   $(id).addEventListener('change', e => {
     ajustarCaderno();
@@ -305,6 +308,7 @@ $('#salvar-prova').addEventListener('click', () => {
   try {
     persistir(definirProva(estado, { codigo: estado.prova?.codigo ?? novoCodigo(), ...(temCaderno(rascunho) ? { caderno: structuredClone(rascunho.caderno) } : {}), ...(areas.length ? { areas } : {}), nome: rascunho.nome.trim(), valor, ...((rascunho.alternativas ?? 'ABCDE') !== 'ABCDE' ? { alternativas: rascunho.alternativas } : {}), ...(rascunho.pesos?.some(p => p !== 1) ? { pesos: [...rascunho.pesos] } : {}),
       versoes: rascunho.versoes.map(v => ({ gabarito: v.gabarito.map(g => g || letras(rascunho)[0]), anuladas: [...v.anuladas] })) }));
+    renderProva();
     msg.textContent = 'Prova salva. Agora imprima a folha na aba Folha.';
   } catch (err) { msg.textContent = err.message; }
 });
@@ -395,7 +399,8 @@ async function lerImagem(img, largura, altura) {
     $('#versao-campo').hidden = estado.prova.versoes.length < 2;
     $('#versao').innerHTML = '<option value="">Confira</option>' +
       estado.prova.versoes.map((_, k) => `<option value="${'ABCD'[k]}">Versão ${'ABCD'[k]}</option>`).join('');
-    $('#versao').value = l.codigo?.versao ?? (l.versao && !l.versaoDuvidosa ? l.versao : '');
+    // Prova embaralhada sem código legível: a folha não tem bolinhas de versão, o professor escolhe.
+    $('#versao').value = l.codigo?.versao ?? (ehEmbaralhada(estado.prova) ? '' : l.versao && !l.versaoDuvidosa ? l.versao : '');
     renderConferencia();
     $('#conferencia').hidden = false;
     $('#conferencia').scrollIntoView();
@@ -454,6 +459,7 @@ async function capturar(video) {
   cv.getContext('2d').drawImage(video, 0, 0, w, h);
   fecharCamera(); avisarCaptura();
   await lerImagem(cv, w, h);
+  if (!leitura && modoCamera) abrirCamera(); // leitura falhou: a mensagem fica e a câmera volta
 }
 $('#abrir-camera').addEventListener('click', abrirCamera);
 $('#fechar-camera').addEventListener('click', () => { modoCamera = false; fecharCamera(); });
@@ -522,7 +528,7 @@ $('#respostas').addEventListener('change', e => {
 });
 $('#numero').addEventListener('input', atualizarConferencia);
 $('#versao').addEventListener('change', atualizarConferencia);
-$('#descartar').addEventListener('click', () => { $('#conferencia').hidden = true; leitura = null; });
+$('#descartar').addEventListener('click', () => { $('#conferencia').hidden = true; leitura = null; if (modoCamera) abrirCamera(); });
 $('#salvar-leitura').addEventListener('click', async () => {
   const turma = $('#turma').value.trim().toUpperCase(), numero = $('#numero').value.trim().padStart(2, '0');
   if (estado.correcoes[chave(turma, numero)] &&

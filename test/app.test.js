@@ -39,13 +39,14 @@ test('salvar prova sem nome ou com gabarito faltando explica o que falta', async
 });
 
 // Pinta bolinhas na folha da tela Folha e devolve um print dela, que faz o papel da foto.
-export async function fotografarFolha(page, numero, respostas, versao) {
+export async function fotografarFolha(page, numero, respostas, versao, { semCodigo = false } = {}) {
   await page.click('#aba-folha');
   await page.setViewportSize({ width: 1000, height: 1500 });
   // Prova embaralhada: cada versão tem sua folha (svg[data-versao]); senão o aluno pinta a bolinha da versão.
   const seletor = await page.evaluate(v => (v && document.querySelector(`#folha svg[data-versao="${v}"]`) ? `#folha svg[data-versao="${v}"]` : '#folha svg'), versao);
-  await page.evaluate(({ numero, respostas, versao, seletor }) => {
+  await page.evaluate(({ numero, respostas, versao, seletor, semCodigo }) => {
     const svg = document.querySelector(seletor);
+    if (semCodigo) svg.querySelectorAll('rect.codigo').forEach(r => r.remove());
     [...numero].forEach((d, c) => svg.querySelector(`[data-dig="${c}-${d}"]`)?.setAttribute('fill', 'black'));
     if (versao) svg.querySelector(`[data-ver="${versao}"]`)?.setAttribute('fill', 'black');
     respostas.forEach((a, q) => {
@@ -53,7 +54,7 @@ export async function fotografarFolha(page, numero, respostas, versao) {
       const [letra, cor] = a.split(':'); // 'B:#aaa' pinta a bolinha com tinta fraca
       svg.querySelector(`[data-q="${q}"][data-alt="${letra}"]`).setAttribute('fill', cor ?? 'black');
     });
-  }, { numero, respostas, versao, seletor });
+  }, { numero, respostas, versao, seletor, semCodigo });
   await page.evaluate(() => { document.querySelector('nav').style.visibility = 'hidden'; }); // a barra fixa cobriria a folha de baixo
   const png = await page.locator(seletor).screenshot();
   await page.evaluate(() => { document.querySelector('nav').style.visibility = ''; });
@@ -443,6 +444,9 @@ test('câmera ao vivo: captura sozinha, abre a conferência e volta para a câme
     assert.ok(await page.isHidden('#camera'));
     await page.click('#salvar-leitura');
     await page.waitForSelector('#camera:not([hidden])');
+    await page.waitForSelector('#conferencia:not([hidden])'); // captura a mesma folha de novo
+    await page.click('#descartar');
+    await page.waitForSelector('#camera:not([hidden])'); // descartar também volta para a câmera
     await page.click('#aba-resultados');
     assert.ok(await page.isHidden('#camera'));
     assert.equal(await page.evaluate(() => document.querySelector('#video').srcObject), null);
@@ -577,5 +581,43 @@ test('caderno embaralhado: não dá para embaralhar de novo com correções salv
   await page.$eval('#caderno-editor', d => { d.open = true; });
   await page.click('#embaralhar-de-novo');
   assert.match(await page.textContent('#prova-msg'), /Já há correções/);
+  await ctx.close();
+});
+
+test('caderno embaralhado: folha sem código legível deixa a versão para o professor escolher', async () => {
+  const { ctx, page } = await abrirApp();
+  await page.click('#aba-prova');
+  await page.fill('#prova-nome', 'E3');
+  await page.fill('#prova-num', '3');
+  await page.dispatchEvent('#prova-num', 'change');
+  await page.selectOption('#prova-versoes', '2');
+  await page.click('#caderno-editor summary');
+  for (const i of [0, 1, 2]) {
+    await page.fill(`#caderno-questoes [data-cq="${i}"] textarea`, `Q${i + 1}`);
+    await page.check(`#caderno-questoes [data-cq="${i}"] input[type=radio][value="A"]`);
+  }
+  await page.check('#embaralhar-alternativas');
+  await page.click('#salvar-prova');
+  assert.match(await page.textContent('#embaralhar-nota'), /Versão B: 1 [A-E], 2 [A-E], 3 [A-E]/);
+  const png = await fotografarFolha(page, '04', ['A', 'A', 'A'], 'B', { semCodigo: true });
+  await page.click('#aba-corrigir');
+  await page.fill('#turma', '1A');
+  await page.setInputFiles('#foto', { name: 'f.png', mimeType: 'image/png', buffer: png });
+  await page.waitForSelector('#conferencia:not([hidden])');
+  assert.equal(await page.inputValue('#versao'), '');
+  assert.ok(await page.isDisabled('#salvar-leitura'));
+  await ctx.close();
+});
+
+test('embaralhar marcado sem caderno não salva versões sem gabarito', async () => {
+  const { ctx, page } = await abrirApp();
+  await page.click('#aba-prova');
+  await page.fill('#prova-nome', 'Sem caderno');
+  await page.selectOption('#prova-versoes', '2');
+  for (const i of [...Array(10).keys()]) await page.click(`#gabarito button[data-q="${i}"][data-alt="A"]`);
+  await page.click('#caderno-editor summary');
+  await page.check('#embaralhar-questoes');
+  await page.click('#salvar-prova');
+  assert.match(await page.textContent('#prova-msg'), /Falta o gabarito da versão B/);
   await ctx.close();
 });

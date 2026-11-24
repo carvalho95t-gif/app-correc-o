@@ -54,8 +54,32 @@ A leitura conferida e salva de um aluno: turma, número de chamada e marcações
 _Avoid_: Resultado, resposta
 
 **Nota**:
-Acertos ÷ total de questões × 10, com uma casa decimal.
+Pontos obtidos ÷ pontos possíveis × 10, com uma casa decimal. Com todos os pesos 1, é acertos ÷ total de questões × 10.
 _Avoid_: Pontuação, score
+
+**Peso**:
+Quanto uma questão vale na nota; 1 quando o professor não muda. Questão anulada dá o peso inteiro a todos.
+
+**Pontos**:
+A soma dos pesos das questões que o aluno acertou.
+
+**Área**:
+Um intervalo nomeado de questões, como "Linguagens, 1 a 45", com acertos e % próprios na planilha.
+
+**Alternativas da prova**:
+As letras que a prova usa em todas as questões: A–E, A–D, A–C, A–B, C/E (Certo/Errado) ou V/F.
+
+**Código da prova**:
+A faixa de quadradinhos no alto da folha de respostas que diz de qual prova (e de qual versão) ela é.
+
+**Versão**:
+Uma das até 4 variações da mesma prova (A–D), cada uma com seu gabarito.
+
+**Caderno de prova**:
+As questões da prova (enunciado, imagem opcional e texto das alternativas), digitadas no app e impressas com a folha.
+
+**Embaralhamento**:
+A troca da ordem das questões e/ou das alternativas nas versões B–D de um caderno. A versão A é o caderno como foi digitado; pesos, áreas e análise seguem sempre a questão original.
 
 **Planilha**:
 O arquivo `.xlsx` exportado: uma aba por turma, uma aba de análise e uma aba de resumo. É o registro definitivo das correções.
