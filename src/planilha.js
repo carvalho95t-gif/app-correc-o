@@ -101,7 +101,26 @@ export function montarPlanilha(XLSX, estado) {
     });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumo(prova, turmas)), 'Resumo');
   }
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dados(estado)), 'Dados');
+  wb.Workbook = { Sheets: wb.SheetNames.map(name => ({ name, Hidden: name === 'Dados' ? 1 : 0 })) };
   return wb;
+}
+
+// Aba escondida com tudo o que é preciso para restaurar a prova. Uma célula do Excel guarda até
+// 32.767 caracteres, então o JSON vai dividido em várias linhas.
+const MARCA = 'app-correcao-v1';
+function dados({ prova, correcoes, chamadas }) {
+  const json = JSON.stringify({ prova, correcoes, chamadas });
+  const linhas = [[MARCA]];
+  for (let i = 0; i < json.length; i += 30000) linhas.push([json.slice(i, i + 30000)]);
+  return linhas;
+}
+
+export function lerPlanilha(XLSX, wb) {
+  const aba = wb.Sheets.Dados, linhas = aba ? XLSX.utils.sheet_to_json(aba, { header: 1, defval: '' }) : [];
+  if (linhas[0]?.[0] !== MARCA) throw new Error('Esta planilha não foi baixada por este app. Use a planilha do botão "Baixar planilha".');
+  const { prova, correcoes, chamadas } = JSON.parse(linhas.slice(1).map(l => l[0]).join(''));
+  return { prova, correcoes, pendente: false, ...(chamadas ? { chamadas } : {}) };
 }
 
 export const nomeArquivo = prova => `${prova.nome.replace(/[\\/:*?"<>|]/g, '-').trim() || 'resultados'}.xlsx`;

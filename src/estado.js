@@ -21,6 +21,7 @@ export function comAtivo(arquivo, estado) {
   return { provas: { ...arquivo.provas, [id]: estado }, ativa: id };
 }
 export const escolher = (arquivo, id) => ({ ...arquivo, ativa: id });
+export const acharPorNome = (arquivo, nome) => Object.keys(arquivo.provas).find(id => arquivo.provas[id].prova.nome === nome) ?? null;
 export const novaProva = arquivo => ({ ...arquivo, ativa: null });
 export function apagarProva(arquivo, id) {
   const { [id]: _, ...resto } = arquivo.provas;

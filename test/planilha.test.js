@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { montarPlanilha, nomeArquivo } from '../src/planilha.js';
+import { montarPlanilha, nomeArquivo, lerPlanilha } from '../src/planilha.js';
 import { definirProva, registrar, estadoInicial, definirLista } from '../src/estado.js';
 
 const XLSX = createRequire(import.meta.url)('../vendor/xlsx.mini.min.js');
@@ -63,7 +63,7 @@ test('nome do arquivo sem caracteres inválidos', () => {
 const objetos = (wb, aba) => XLSX.utils.sheet_to_json(wb.Sheets[aba], { defval: '' });
 
 test('abas Análise e Resumo depois das turmas', () => {
-  assert.deepEqual(montarPlanilha(XLSX, estadoExemplo()).SheetNames, ['2A', '2B', 'Análise', 'Resumo']);
+  assert.deepEqual(montarPlanilha(XLSX, estadoExemplo()).SheetNames, ['2A', '2B', 'Análise', 'Resumo', 'Dados']);
 });
 
 test('Análise: acerto geral e por turma, alternativas marcadas e dificuldade', () => {
@@ -143,10 +143,32 @@ test('com versões: a nota usa o gabarito da versão do aluno', () => {
 
 test('com versões: uma aba de Análise por versão e Resumo por versão', () => {
   const wb = montarPlanilha(XLSX, estadoVersoes());
-  assert.deepEqual(wb.SheetNames, ['2A', 'Análise A', 'Análise B', 'Resumo']);
+  assert.deepEqual(wb.SheetNames, ['2A', 'Análise A', 'Análise B', 'Resumo', 'Dados']);
   assert.equal(objetos(wb, 'Análise B')[0]['% acerto geral'], 50);
   const [t] = objetos(wb, 'Resumo');
   assert.equal(t['Alunos'], 3);
   assert.equal(t['3 mais difíceis (A)'], 'Q1, Q2, Q3');
   assert.equal(t['3 mais fáceis (B)'], 'Q4, Q1, Q2');
+});
+
+// ---------- ticket 11: restaurar a partir da planilha ----------
+test('exportar e importar devolve a mesma prova, correções, nomes, valor e versões', () => {
+  let e = definirLista(estadoVersoes(), '2A', 'Ana\nBia');
+  e = definirProva(e, { ...e.prova, valor: 3 });
+  const volta = lerPlanilha(XLSX, releitura(montarPlanilha(XLSX, e)));
+  assert.deepEqual(volta, { ...e, pendente: false });
+});
+
+test('a aba Dados fica escondida e aguenta muitas correções', () => {
+  let e = definirProva(estadoInicial(), { nome: 'Grande', valor: 10, versoes: [{ gabarito: Array(90).fill('A'), anuladas: [] }] });
+  for (let t = 0; t < 4; t++) for (let n = 0; n < 45; n++) e = registrar(e, corr(`T${t}`, String(n).padStart(2, '0'), Array(90).fill('dupla')));
+  const wb = releitura(montarPlanilha(XLSX, e));
+  assert.ok(wb.Workbook.Sheets.find(x => x.name === 'Dados').Hidden);
+  assert.equal(Object.keys(lerPlanilha(XLSX, wb).correcoes).length, 180);
+});
+
+test('planilha que não é do app dá erro claro', () => {
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['oi']]), 'Plan1');
+  assert.throws(() => lerPlanilha(XLSX, wb), /não foi baixada por este app/);
 });

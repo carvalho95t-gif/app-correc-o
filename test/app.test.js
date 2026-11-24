@@ -268,3 +268,38 @@ test('prova com duas versões: folha com bolinhas de versão e nota pelo gabarit
   assert.ok(await page.isEnabled('#salvar-leitura'));
   await ctx.close();
 });
+
+// ---------- ticket 11: restaurar a partir da planilha ----------
+test('restaurar a prova importando a planilha baixada', async () => {
+  const { ctx, page } = await abrirApp();
+  await criarProva(page, { nome: 'Prova A' });
+  await fotografarECorrigir(page, '2A', '01', [...'ABCDEABCDE']);
+  await page.click('#salvar-leitura');
+  await page.click('#aba-resultados');
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#baixar')]);
+  const arquivo = await readFile(await download.path());
+
+  // Mesmo nome já existe: o professor escolhe manter as duas.
+  await page.click('#aba-prova');
+  await page.setInputFiles('#importar', { name: 'Prova A.xlsx', mimeType: 'application/octet-stream', buffer: arquivo });
+  await page.waitForSelector('#dlg[open]');
+  assert.match(await page.textContent('#dlg-msg'), /Já existe uma prova "Prova A"/);
+  await page.click('#dlg-nao'); // Manter as duas
+  await page.waitForFunction(() => document.querySelectorAll('#prova-ativa option').length === 2);
+  assert.ok(await page.locator('#prova-ativa option', { hasText: 'Prova A (restaurada)' }).count());
+
+  // Celular apagou tudo: importar traz a prova e as correções de volta.
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.click('#aba-prova');
+  await page.setInputFiles('#importar', { name: 'Prova A.xlsx', mimeType: 'application/octet-stream', buffer: arquivo });
+  await page.waitForFunction(() => /restaurada/.test(document.querySelector('#prova-msg').textContent));
+  assert.match(await page.textContent('#prova-msg'), /Prova "Prova A" restaurada com 1 correção\./);
+  await page.click('#aba-resultados');
+  assert.match(await page.locator('#resultados tbody tr').textContent(), /01.*10\/10/s);
+
+  await page.click('#aba-prova');
+  await page.setInputFiles('#importar', { name: 'x.xlsx', mimeType: 'application/octet-stream', buffer: Buffer.from('não é planilha') });
+  await page.waitForFunction(() => /não foi baixada|Não consegui ler/.test(document.querySelector('#prova-msg').textContent));
+  await ctx.close();
+});

@@ -2,8 +2,8 @@
 import { montarLayout } from './src/layout.js';
 import { folhaSVG } from './src/folha.js';
 import { carregar, salvar, definirProva, arquivoInicial, ativo, comAtivo, escolher, novaProva, apagarProva, listar,
-  registrar, chave, remover, marcarExportado, definirLista, nomeDo, versaoDe } from './src/estado.js';
-import { montarPlanilha, nomeArquivo, porTurma, notaDe } from './src/planilha.js';
+  acharPorNome, registrar, chave, remover, marcarExportado, definirLista, nomeDo, versaoDe } from './src/estado.js';
+import { montarPlanilha, nomeArquivo, porTurma, notaDe, lerPlanilha } from './src/planilha.js';
 import { paraCinza, lerFolha, homografia, aplicar } from './src/leitor.js';
 import { corrigir } from './src/nota.js';
 
@@ -100,6 +100,26 @@ $('#apagar-prova').addEventListener('click', async () => {
   }
   rascunho = provaEmBranco(); $('#prova-msg').textContent = '';
   renderProva();
+});
+$('#importar').addEventListener('change', async e => {
+  const arquivoXlsx = e.target.files[0];
+  e.target.value = '';
+  if (!arquivoXlsx) return;
+  const msg = $('#prova-msg');
+  let restaurado;
+  try { restaurado = lerPlanilha(XLSX, XLSX.read(await arquivoXlsx.arrayBuffer(), { type: 'array' })); }
+  catch (err) { msg.textContent = err.message.startsWith('Esta planilha') ? err.message : 'Não consegui ler esse arquivo. Escolha a planilha baixada pelo app.'; return; }
+  const nome = restaurado.prova.nome, existente = acharPorNome(arquivo, nome);
+  let base = novaProva(arquivo);
+  if (existente) {
+    if (await perguntar(`Já existe uma prova "${nome}" no app. Substituir pela da planilha?`, 'Substituir', 'Manter as duas')) base = escolher(arquivo, existente);
+    else restaurado.prova = { ...restaurado.prova, nome: `${nome} (restaurada)` };
+  }
+  gravar(comAtivo(base, restaurado));
+  rascunho = structuredClone(estado.prova);
+  renderProva();
+  const n = Object.keys(estado.correcoes).length;
+  msg.textContent = `Prova "${nome}" restaurada com ${n} ${n === 1 ? 'correção' : 'correções'}.`;
 });
 $('#prova-nome').addEventListener('input', e => { rascunho.nome = e.target.value; });
 $('#prova-valor').addEventListener('input', e => { rascunho.valor = e.target.value; });
