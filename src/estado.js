@@ -1,3 +1,4 @@
+import { gerarVersoes } from './embaralhar.js';
 // Estado do app, guardado no navegador. Funções puras: nunca alteram o estado recebido.
 // "Arquivo" guarda várias provas; cada uma tem seu "estado": prova, correções e se falta exportar.
 const CHAVE = 'correcao-v3';
@@ -41,6 +42,12 @@ export function definirProva(estado, prova) {
     throw new Error('Já há correções com outras alternativas. Baixe a planilha e comece uma nova prova.');
   const semVersao = correcoes.find(c => 'ABCD'.indexOf(c.versao ?? 'A') >= prova.versoes.length);
   if (semVersao) throw new Error(`Já há correções da versão ${semVersao.versao}. Não dá para tirar essa versão.`);
+  const emb = prova.caderno?.embaralhar;
+  if (emb && (emb.questoes || emb.alternativas) && prova.versoes.length > 1) // versões B–D saem do gabarito da A
+    prova = { ...prova, versoes: gerarVersoes(prova.versoes[0], prova.versoes.length, prova.alternativas ?? 'ABCDE', emb, prova.caderno.semente ?? 1) };
+  const arranjo = p => JSON.stringify(p?.versoes.map(v => [v.ordem, v.trocas]) ?? null);
+  if (temCorrecoes && estado.prova && (estado.prova.versoes[1]?.ordem || prova.versoes[1]?.ordem) && arranjo(estado.prova) !== arranjo(prova))
+    throw new Error('Já há correções desta prova. Não dá para mudar o embaralhamento das versões. Comece uma nova prova.');
   return { ...estado, prova, pendente: estado.pendente || temCorrecoes };
 }
 

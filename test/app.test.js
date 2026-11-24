@@ -42,17 +42,21 @@ test('salvar prova sem nome ou com gabarito faltando explica o que falta', async
 export async function fotografarFolha(page, numero, respostas, versao) {
   await page.click('#aba-folha');
   await page.setViewportSize({ width: 1000, height: 1500 });
-  await page.evaluate(({ numero, respostas, versao }) => {
-    const svg = document.querySelector('#folha svg');
+  // Prova embaralhada: cada versão tem sua folha (svg[data-versao]); senão o aluno pinta a bolinha da versão.
+  const seletor = await page.evaluate(v => (v && document.querySelector(`#folha svg[data-versao="${v}"]`) ? `#folha svg[data-versao="${v}"]` : '#folha svg'), versao);
+  await page.evaluate(({ numero, respostas, versao, seletor }) => {
+    const svg = document.querySelector(seletor);
     [...numero].forEach((d, c) => svg.querySelector(`[data-dig="${c}-${d}"]`)?.setAttribute('fill', 'black'));
-    if (versao) svg.querySelector(`[data-ver="${versao}"]`).setAttribute('fill', 'black');
+    if (versao) svg.querySelector(`[data-ver="${versao}"]`)?.setAttribute('fill', 'black');
     respostas.forEach((a, q) => {
       if (!a) return;
       const [letra, cor] = a.split(':'); // 'B:#aaa' pinta a bolinha com tinta fraca
       svg.querySelector(`[data-q="${q}"][data-alt="${letra}"]`).setAttribute('fill', cor ?? 'black');
     });
-  }, { numero, respostas, versao });
-  const png = await page.locator('#folha svg').screenshot();
+  }, { numero, respostas, versao, seletor });
+  await page.evaluate(() => { document.querySelector('nav').style.visibility = 'hidden'; }); // a barra fixa cobriria a folha de baixo
+  const png = await page.locator(seletor).screenshot();
+  await page.evaluate(() => { document.querySelector('nav').style.visibility = ''; });
   await page.setViewportSize({ width: 390, height: 844 });
   return png;
 }
@@ -517,5 +521,61 @@ test('imagem na questão: fica reduzida no caderno e continua depois de recarreg
   await page.reload();
   await confere();
   assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+// ---------- novas funções 08: caderno embaralhado ----------
+test('caderno embaralhado: duas versões impressas e a folha da versão B corrigida pelo gabarito gerado', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await page.click('#aba-prova');
+  await page.fill('#prova-nome', 'Embaralhada');
+  await page.fill('#prova-num', '6');
+  await page.dispatchEvent('#prova-num', 'change');
+  await page.selectOption('#prova-versoes', '2');
+  await page.click('#caderno-editor summary');
+  for (const [i, certa] of [...'ABCDEA'].entries()) {
+    await page.fill(`#caderno-questoes [data-cq="${i}"] textarea`, `Questão original ${i + 1}`);
+    await page.check(`#caderno-questoes [data-cq="${i}"] input[type=radio][value="${certa}"]`);
+  }
+  await page.check('#embaralhar-questoes');
+  await page.check('#embaralhar-alternativas');
+  await page.click('#salvar-prova');
+  assert.match(await page.textContent('#prova-msg'), /Prova salva/);
+  const gabB = await page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('correcao-v3')).provas)[0].prova.versoes[1].gabarito);
+  assert.notDeepEqual(gabB, [...'ABCDEA']);
+
+  await page.click('#aba-folha');
+  assert.equal(await page.locator('#folha svg').count(), 2);
+  assert.equal(await page.locator('#caderno .caderno-pagina').count(), 2);
+  assert.match(await page.textContent('#caderno .caderno-pagina >> nth=1'), /Versão B/);
+  await fotografarECorrigir(page, '1A', '08', gabB, 'B');
+  assert.equal(await page.inputValue('#versao'), 'B');
+  assert.match(await page.textContent('#placar'), /6 de 6/);
+  await page.click('#salvar-leitura');
+  assert.match(await page.textContent('#corrigir-msg'), /nº 08 \(1A\) salva/);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+test('caderno embaralhado: não dá para embaralhar de novo com correções salvas', async () => {
+  const { ctx, page } = await abrirApp();
+  await page.click('#aba-prova');
+  await page.fill('#prova-nome', 'E2');
+  await page.fill('#prova-num', '3');
+  await page.dispatchEvent('#prova-num', 'change');
+  await page.selectOption('#prova-versoes', '2');
+  await page.click('#caderno-editor summary');
+  for (const i of [0, 1, 2]) {
+    await page.fill(`#caderno-questoes [data-cq="${i}"] textarea`, `Q${i + 1}`);
+    await page.check(`#caderno-questoes [data-cq="${i}"] input[type=radio][value="A"]`);
+  }
+  await page.check('#embaralhar-questoes');
+  await page.click('#salvar-prova');
+  await fotografarECorrigir(page, '1A', '01', ['A', 'A', 'A'], 'A');
+  await page.click('#salvar-leitura');
+  await page.click('#aba-prova');
+  await page.$eval('#caderno-editor', d => { d.open = true; });
+  await page.click('#embaralhar-de-novo');
+  assert.match(await page.textContent('#prova-msg'), /Já há correções/);
   await ctx.close();
 });

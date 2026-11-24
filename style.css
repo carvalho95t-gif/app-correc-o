@@ -40,7 +40,8 @@ nav button[aria-current=page] { color: var(--azul); font-weight: 700; box-shadow
 dialog { border: 0; border-radius: 12px; max-width: 360px; }
 @media print {
   header, nav, main > section > *:not(#folha-pronta), #folha-pronta > *:not(#folha):not(#caderno), dialog { display: none !important; }
-  body:not(.com-caderno) #caderno { display: none !important; }
+  body:not(.com-caderno) #caderno, body.com-caderno #folha { display: none !important; }
+  .folha-impressa svg { display: block; width: 210mm; height: 297mm; break-after: page; }
   .caderno-pagina { break-after: page; box-shadow: none; margin: 0; }
   body, main { padding: 0; margin: 0; background: white; }
   #tela-folha { display: block !important; }
@@ -73,3 +74,4 @@ details#caderno-editor { margin: 16px 0; background: white; padding: 8px 12px; b
 .caderno-pagina ol.alternativas { list-style: none; padding-left: 0; margin: 4px 0; }
 .caderno-pagina img { max-width: 100%; }
 .miniatura { display: block; max-width: 160px; margin: 6px 0; border: 1px solid var(--borda); }
+.folha-impressa svg { width: 100%; height: auto; border: 1px solid var(--borda); }

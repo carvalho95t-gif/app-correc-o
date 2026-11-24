@@ -263,3 +263,64 @@ test('restaurar traz a imagem da questão', () => {
   const wb = releitura(montarPlanilha(XLSX, estadoExemplo({ caderno })));
   assert.equal(lerPlanilha(XLSX, wb).prova.caderno.questoes[1].imagem, imagem);
 });
+
+// ---------- novas funções 08: caderno embaralhado ----------
+import { cadernoDaVersao } from '../src/embaralhar.js';
+const cadernoEmb = embaralhar => ({
+  questoes: ['Q1', 'Q2', 'Q3', 'Q4', 'Q5', 'Q6'].map(t => ({ enunciado: t, alternativas: ['a', 'b', 'c', 'd', 'e'].map(x => `${t}${x}`) })),
+  embaralhar, semente: 12345,
+});
+function provaEmbaralhada(extra = {}) {
+  const v = { gabarito: ['A', 'B', 'C', 'D', 'E', 'A'], anuladas: [] };
+  return definirProva(estadoInicial(), { nome: 'Emb', valor: 10, versoes: [v, v], caderno: cadernoEmb({ questoes: true, alternativas: true }), ...extra });
+}
+// A marcação certa, na ordem da folha da versão B: a letra da folha cuja alternativa é a certa do original.
+const certasB = prova => {
+  const cad = cadernoDaVersao(prova, 1);
+  return cad.caderno.questoes.map(q => 'ABCDE'[q.alternativas.findIndex(t => t.endsWith(prova.versoes[0].gabarito[+t[1] - 1].toLowerCase()))]);
+};
+
+test('embaralhado: a versão B tem outra ordem, o gabarito é gerado, e o caderno segue a mesma ordem', () => {
+  const { prova } = provaEmbaralhada();
+  const b = cadernoDaVersao(prova, 1).caderno.questoes.map(q => q.enunciado);
+  assert.notDeepEqual(b, ['Q1', 'Q2', 'Q3', 'Q4', 'Q5', 'Q6']);
+  assert.deepEqual([...b].sort(), ['Q1', 'Q2', 'Q3', 'Q4', 'Q5', 'Q6']);
+  assert.deepEqual(prova.versoes[1].gabarito, certasB(prova));
+  assert.deepEqual(cadernoDaVersao(prova, 0).caderno.questoes.map(q => q.enunciado), ['Q1', 'Q2', 'Q3', 'Q4', 'Q5', 'Q6']);
+  assert.deepEqual(provaEmbaralhada().prova.versoes, prova.versoes); // mesma semente, mesmas versões
+});
+
+test('embaralhado: nota, marcações e Análise pela questão original; pesos seguem a original', () => {
+  let e = provaEmbaralhada({ pesos: [3, 1, 1, 1, 1, 1] });
+  const certas = certasB(e.prova), ordemB = cadernoDaVersao(e.prova, 1).caderno.questoes.map(q => +q.enunciado[1] - 1);
+  // Aluno da versão B acerta só a questão que é a Q1 original.
+  e = registrar(e, { turma: '1A', numero: '01', versao: 'B', respostas: ordemB.map((o, p) => (o === 0 ? certas[p] : 'branco')), editado: false });
+  e = registrar(e, { turma: '1A', numero: '02', versao: 'A', respostas: ['A', 'B', 'C', 'D', 'E', 'A'], editado: false });
+  const wb = releitura(montarPlanilha(XLSX, e));
+  const l = linhas(wb, '1A');
+  assert.deepEqual(l[0].slice(0, 9), ['Nº', 'Versão', 'Q1', 'Q2', 'Q3', 'Q4', 'Q5', 'Q6', 'Acertos']);
+  assert.deepEqual(l[3].slice(2, 8), ['A', 'branco', 'branco', 'branco', 'branco', 'branco']); // pela original
+  assert.deepEqual(l[3].slice(8, 12), [1, 3, 38, 3.8]); // 3 de 8 pontos
+  assert.deepEqual(l[4].slice(8, 12), [6, 8, 100, 10]);
+  assert.ok(wb.SheetNames.includes('Análise') && !wb.SheetNames.includes('Análise B'));
+  const [q1, q2] = objetos(wb, 'Análise');
+  assert.equal(q1['% acerto geral'], 100); assert.equal(q2['% acerto geral'], 50);
+});
+
+test('embaralhado: C/E nunca troca as alternativas; restaurar mantém as versões', () => {
+  const v = { gabarito: ['C', 'E', 'C', 'E', 'C', 'E'], anuladas: [] };
+  const { prova } = definirProva(estadoInicial(), { nome: 'CE', valor: 10, alternativas: 'CE', versoes: [v, v], caderno: cadernoEmb({ questoes: true, alternativas: true }) });
+  const b = cadernoDaVersao(prova, 1).caderno.questoes;
+  assert.ok(b.every(q => q.alternativas[0].endsWith('a')));
+  const e = provaEmbaralhada();
+  assert.deepEqual(lerPlanilha(XLSX, releitura(montarPlanilha(XLSX, e))).prova.versoes, e.prova.versoes);
+});
+
+test('embaralhado: com correções salvas não dá para mudar o embaralhamento', () => {
+  let e = provaEmbaralhada();
+  e = registrar(e, { turma: '1A', numero: '01', versao: 'B', respostas: Array(6).fill('A'), editado: false });
+  const novo = { ...e.prova, versoes: [e.prova.versoes[0], e.prova.versoes[0]], caderno: { ...e.prova.caderno, semente: 999 } };
+  assert.throws(() => definirProva(e, novo), /embaralhamento/);
+  const mesmo = { ...e.prova, versoes: [e.prova.versoes[0], e.prova.versoes[0]] };
+  assert.doesNotThrow(() => definirProva(e, mesmo)); // salvar de novo sem mudar nada continua valendo
+});

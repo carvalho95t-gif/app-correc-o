@@ -4,7 +4,7 @@
 
 **Blocked by:** 01, 03, 04, 06
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Seam Planilha: prova embaralhada com marcações e uma Análise por questão original; pesos e áreas seguem a questão original
 - [ ] Seam Planilha: restaurar mantém as mesmas versões

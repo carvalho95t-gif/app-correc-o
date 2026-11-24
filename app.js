@@ -5,9 +5,9 @@ import { carregar, salvar, definirProva, arquivoInicial, ativo, comAtivo, escolh
   acharPorNome, validarAreas, registrar, chave, remover, marcarExportado, definirLista, nomeDo, versaoDe } from './src/estado.js';
 import { montarPlanilha, nomeArquivo, porTurma, notaDe, lerPlanilha } from './src/planilha.js';
 import { paraCinza, lerFolha, homografia, aplicar, acharMarcadores, quadroPronto } from './src/leitor.js';
-import { corrigir } from './src/nota.js';
 import { codificar } from './src/codigo.js';
 import { cadernoHTML } from './src/caderno.js';
+import { ehEmbaralhada, cadernoDaVersao } from './src/embaralhar.js';
 import { carregarImagens, guardarImagem, apagarImagens, ehRef, resolver, reduzir } from './src/imagens.js';
 
 const $ = s => document.querySelector(s);
@@ -31,7 +31,8 @@ const provaEmBranco = () => ({ nome: '', valor: 10, versoes: [{ gabarito: Array(
 let rascunho = estado.prova ? structuredClone(estado.prova) : provaEmBranco();
 let editando = 0; // versão cujo gabarito está sendo editado
 const numQuestoes = p => p.versoes[0].gabarito.length;
-const layoutDa = p => montarLayout(numQuestoes(p), p.versoes.length, p.alternativas);
+// Prova embaralhada: cada versão tem sua folha, com a versão no código, sem bolinhas de versão.
+const layoutDa = p => montarLayout(numQuestoes(p), ehEmbaralhada(p) ? 1 : p.versoes.length, p.alternativas);
 
 function gravar(novoArquivo) {
   arquivo = novoArquivo; estado = ativo(arquivo);
@@ -84,6 +85,11 @@ function renderProva() {
   $('#prova-valor').value = rascunho.valor;
   $('#pesos-resumo').textContent = resumoPesos(rascunho.pesos ?? []);
   renderCadernoEditor();
+  const emb = rascunho.caderno?.embaralhar ?? {};
+  $('#embaralhar-questoes').checked = !!emb.questoes; $('#embaralhar-alternativas').checked = !!emb.alternativas;
+  $('#embaralhar-de-novo').hidden = !embaralhando(rascunho);
+  $('#embaralhar-nota').hidden = !embaralhando(rascunho);
+  if (embaralhando(rascunho)) $('#versoes-gabarito').hidden = true;
   $('#areas').innerHTML = (rascunho.areas ?? []).map((a, k) => `
     <div class="pesos" data-area="${k}">
       <label>Área <input name="nome" value="${esc(a.nome)}" autocomplete="off"></label>
@@ -148,6 +154,19 @@ $('#caderno-questoes').addEventListener('change', async e => {
   document.querySelectorAll(`#gabarito button[data-q="${i}"]`).forEach(b => b.setAttribute('aria-pressed', b.dataset.alt === e.target.value));
 });
 const temCaderno = p => !!p.caderno?.questoes.some(q => q.enunciado.trim());
+const embaralhando = p => p.versoes.length > 1 && !!(p.caderno?.embaralhar?.questoes || p.caderno?.embaralhar?.alternativas);
+for (const [id, campo] of [['#embaralhar-questoes', 'questoes'], ['#embaralhar-alternativas', 'alternativas']])
+  $(id).addEventListener('change', e => {
+    ajustarCaderno();
+    rascunho.caderno.embaralhar = { ...rascunho.caderno.embaralhar, [campo]: e.target.checked };
+    rascunho.caderno.semente ??= 1 + Math.floor(Math.random() * 2 ** 30);
+    editando = 0; renderProva();
+  });
+$('#embaralhar-de-novo').addEventListener('click', () => {
+  if (Object.keys(estado.correcoes).length) { $('#prova-msg').textContent = 'Já há correções desta prova. Embaralhar de novo mudaria as versões já corrigidas. Comece uma nova prova.'; return; }
+  rascunho.caderno.semente = 1 + Math.floor(Math.random() * 2 ** 30);
+  $('#prova-msg').textContent = 'Versões embaralhadas de novo. Salve a prova e imprima o caderno outra vez.';
+});
 
 // "Questões 1 a 5 valem 2; as outras valem 1."
 function resumoPesos(pesos) {
@@ -275,6 +294,7 @@ $('#salvar-prova').addEventListener('click', () => {
   if (!rascunho.nome.trim()) { msg.textContent = 'Dê um nome à prova antes de salvar.'; return; }
   if (!(valor > 0)) { msg.textContent = 'O valor da prova precisa ser maior que zero.'; return; }
   for (const [k, v] of rascunho.versoes.entries()) {
+    if (k > 0 && embaralhando(rascunho)) break; // as outras versões saem da A
     const faltam = v.gabarito.flatMap((g, i) => (!g && !v.anuladas.includes(i) ? [i + 1] : []));
     const daVersao = rascunho.versoes.length > 1 ? ` da versão ${'ABCD'[k]}` : '';
     if (faltam.length) { msg.textContent = `Falta o gabarito${daVersao} da questão ${faltam.join(', ')}. Marque a alternativa certa ou anule a questão.`; return; }
@@ -306,22 +326,22 @@ function renderFolha() {
   const cabeDuas = numQuestoes(p) <= 30, duas = cabeDuas && $('#duas-por-pagina').checked;
   $('#opcao-duas').hidden = !cabeDuas;
   if (!p.codigo) persistir({ ...estado, prova: { ...p, codigo: novoCodigo() } }); // provas salvas antes do código
-  const svg = folhaSVG(layoutDa(estado.prova), p.nome, codificar(estado.prova.codigo, null));
-  $('#folha').innerHTML = duas ? svg + svg : svg;
+  const prova = estado.prova, emb = ehEmbaralhada(prova), layout = layoutDa(prova);
+  const folhaDe = k => folhaSVG(layout, prova.nome, codificar(prova.codigo, emb ? 'ABCD'[k] : null))
+    .replace('<svg ', emb ? `<svg data-versao="${'ABCD'[k]}" ` : '<svg ');
+  const folhas = emb ? prova.versoes.map((_, k) => folhaDe(k)) : [folhaDe(0)];
+  $('#folha').innerHTML = folhas.map(f => (duas ? f + f : f)).join('');
   $('#folha').classList.toggle('duas', duas);
-  const comCaderno = temCaderno(estado.prova);
+  const comCaderno = temCaderno(prova);
   $('#imprimir-caderno').hidden = !comCaderno;
-  $('#caderno').innerHTML = comCaderno ? cadernoHTML(comImagens(estado.prova)) : '';
+  // Para imprimir: o caderno de cada versão seguido da sua folha.
+  $('#caderno').innerHTML = !comCaderno ? '' : (emb ? prova.versoes : [0]).map((_, k) =>
+    cadernoHTML(comImagens(cadernoDaVersao(prova, k)), emb ? `Versão ${'ABCD'[k]}` : '') + `<div class="folha-impressa">${folhas[k]}</div>`).join('');
   $('#pagina').textContent = `@page { size: A4 ${duas ? 'landscape' : 'portrait'}; margin: 0; }`;
 }
 $('#duas-por-pagina').addEventListener('change', renderFolha);
 $('#imprimir').addEventListener('click', () => { document.body.classList.remove('com-caderno'); window.print(); });
-// O caderno vem antes da folha: a ordem na tela de impressão segue a ordem no HTML.
-$('#imprimir-caderno').addEventListener('click', () => {
-  $('#folha').before($('#caderno'));
-  document.body.classList.add('com-caderno'); window.print();
-  $('#caderno').before($('#folha'));
-});
+$('#imprimir-caderno').addEventListener('click', () => { document.body.classList.add('com-caderno'); window.print(); });
 
 // ---------- corrigir ----------
 function renderCorrigir() {
@@ -462,8 +482,8 @@ function renderConferencia() {
 }
 
 function atualizarConferencia() {
-  const p = versaoAtual(), v = leitura.valores;
-  const c = corrigir(p.gabarito, p.anuladas, v.map(x => x || 'branco'), estado.prova.pesos);
+  const v = leitura.valores;
+  const c = notaDe(estado.prova, { versao: $('#versao').value || 'A', respostas: v.map(x => x || 'branco') });
   $('#placar').textContent = `${c.acertos} de ${c.total} acertos · nota ${nota1(c.nota)}`;
   const faltam = v.flatMap((x, i) => (x === '' ? [i + 1] : []));
   const numeroOk = /^\d{1,2}$/.test($('#numero').value.trim()), versaoOk = $('#versao').value !== '';
