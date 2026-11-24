@@ -493,7 +493,7 @@ test('impressão: folha em 1 página e prova curta sem folha separada', async ()
   await page.click('#salvar-prova');
   await page.click('#aba-folha');
   await page.evaluate(() => { document.querySelector('#folha').before(document.querySelector('#caderno')); document.body.classList.add('com-caderno'); });
-  assert.equal(paginas(await page.pdf({ preferCSSPageSize: true })), 3); // página 1 com o quadro do gabarito, duas de questões
+  assert.equal(paginas(await page.pdf({ preferCSSPageSize: true })), 2); // página 1 com o quadro do gabarito, questões em duas colunas
   await ctx.close();
 });
 

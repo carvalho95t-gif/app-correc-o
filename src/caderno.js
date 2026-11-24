@@ -63,6 +63,7 @@ export function cadernoHTML(prova, rotuloVersao = '', gabarito = '') {
 // Regras de página: o cabeçalho corrido das questões traz o nome curto e o número da página.
 export function estiloDePagina(prova) {
   const c = prova.caderno?.cabecalho ?? {}, nome = (c.nomeCurto || prova.nome).replace(/["\\\n]/g, ' ');
-  return `@page questoes { size: A4; margin: 18mm 18mm 16mm; @top-right { content: "${nome}   " counter(page); font: 10pt "Times New Roman", serif; } }
-@page capa { size: A4; margin: 14mm 18mm 16mm; }`;
+  // Margens da ABNT (NBR 14724): 3 cm em cima e à esquerda, 2 cm embaixo e à direita; número da página no alto à direita.
+  return `@page questoes { size: A4; margin: 30mm 20mm 20mm 30mm; @top-right { content: "${nome}   " counter(page); font: 10pt "Times New Roman", serif; vertical-align: bottom; padding-bottom: 8mm; } }
+@page capa { size: A4; margin: 30mm 20mm 20mm 30mm; }`;
 }
