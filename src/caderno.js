@@ -18,7 +18,7 @@ export function instrucoes(prova) {
     iguais ? `Cada questão vale ${num(pts[0])} ${pts[0] === 1 ? 'ponto' : 'pontos'}, totalizando ${num(valor)} pontos.`
       : `O valor de cada questão está ao lado do seu número, totalizando ${num(valor)} pontos.`,
     'Leia com atenção o texto-base e o enunciado antes de responder.',
-    'Marque suas respostas no quadro do gabarito, preenchendo completamente a bolinha da alternativa escolhida, com caneta azul ou preta. Não use corretivo; respostas rasuradas ou com mais de uma marcação serão anuladas.',
+    `Marque suas respostas ${n <= 30 ? 'no quadro do gabarito' : 'na folha de respostas'}, preenchendo completamente a região da alternativa escolhida, com caneta azul ou preta. Não use corretivo; respostas rasuradas ou com mais de uma marcação serão anuladas.`,
     ...String(prova.caderno.cabecalho?.instrucoes ?? '').split('\n').map(l => l.trim()).filter(Boolean),
   ];
 }
@@ -38,6 +38,7 @@ export function capaHTML(prova, rotuloVersao = '', gabarito = '') {
     <div class="instrucoes"><h2>Instruções ao estudante</h2>
       <ol>${instrucoes(prova).map(l => `<li>${esc(l)}</li>`).join('')}</ol></div>
     ${gabarito}
+    <div class="assinaturas"><div>Assinatura do estudante</div><div>Visto do(a) professor(a)</div></div>
   </section>`;
 }
 

@@ -54,7 +54,8 @@ export function lerComMarcadores(cinza, layout, marcadoresPx) {
   };
   const tinta = [], papel = [];
   for (const m of layout.marcadores) for (let dx = -3; dx <= 3; dx++) for (let dy = -3; dy <= 3; dy++) tinta.push(pixel(m.x + dx, m.y + dy));
-  for (let y = 105; y <= 270; y += 2) papel.push(pixel(70, y), pixel(130, y)); // faixas sem impressão entre colunas
+  if (layout.papel) for (const p of layout.papel) papel.push(pixel(p.x, p.y));
+  else for (let y = 105; y <= 270; y += 2) papel.push(pixel(70, y), pixel(130, y)); // faixas sem impressão entre colunas
   // Escurecimento relativo (0 = papel, 1 = tinta): mantém a leitura igual em cópias claras e escuras.
   const nivelTinta = mediana(tinta), nivelPapel = mediana(papel);
   const escuro = v => Math.min(1, Math.max(0, (nivelPapel - v) / (nivelPapel - nivelTinta)));
@@ -81,7 +82,7 @@ export function lerComMarcadores(cinza, layout, marcadoresPx) {
     return soma / 9;
   };
   return {
-    codigo: decodificar(layout.codigo.map(c => celula(c) > 0.5)),
+    codigo: layout.codigo ? decodificar(layout.codigo.map(c => celula(c) > 0.5)) : null, // o quadro leva o código no QR
     versao: versao.indice >= 0 ? 'ABCD'[versao.indice] : null,
     versaoDuvidosa: versao.duvidosa,
     numero: digitos.every(d => d.indice >= 0) ? digitos.map(d => d.indice).join('') : null,
@@ -145,8 +146,12 @@ function candidatos(img) {
   return lista.filter(c => c.n >= 0.3 * maior); // descarta bolinhas pintadas e sujeira pequena
 }
 
+// Largura sobre altura do retângulo dos marcadores de um layout.
+export const razaoDe = ({ marcadores: [tl, tr, , bl] }) => (tr.x - tl.x) / (bl.y - tl.y);
+
 // Centros dos 4 marcadores (TL, TR, BR, BL) em pixels da imagem original, ou null.
-export function acharMarcadores(cinza) {
+// razao: largura/altura esperada do retângulo dos marcadores (padrão: folha avulsa A4).
+export function acharMarcadores(cinza, razaoEsperada = 180 / 267) {
   const f = Math.max(1, Math.ceil(Math.max(cinza.width, cinza.height) / 1000));
   const c = candidatos(f > 1 ? reduzir(cinza, f) : cinza);
   if (c.length < 4) return null;
@@ -155,7 +160,7 @@ export function acharMarcadores(cinza) {
   if (new Set(cantos).size < 4) return null;
   const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const razao = (d(cantos[0], cantos[1]) + d(cantos[3], cantos[2])) / (d(cantos[0], cantos[3]) + d(cantos[1], cantos[2]));
-  if (Math.abs(razao / (180 / 267) - 1) > 0.25) return null;
+  if (Math.abs(razao / razaoEsperada - 1) > 0.25) return null;
   return cantos.map(p => ({ x: p.x * f, y: p.y * f }));
 }
 
@@ -168,6 +173,6 @@ export function quadroPronto(historico, largura, n = 3) {
 }
 
 export function lerFolha(cinza, layout) {
-  const m = acharMarcadores(cinza);
+  const m = acharMarcadores(cinza, razaoDe(layout));
   return m && lerComMarcadores(cinza, layout, m);
 }

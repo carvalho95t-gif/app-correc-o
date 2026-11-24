@@ -20,6 +20,10 @@ _Avoid_: Questão cancelada
 A folha impressa, igual para todos os alunos, onde o aluno pinta o número de chamada e as respostas.
 _Avoid_: Cartão-resposta, gabarito do aluno
 
+**Quadro do gabarito**:
+O quadro na página 1 da prova impressa (provas de até 30 questões) onde o aluno pinta o número de chamada e as respostas. Tem um QR code com a prova e a versão. Substitui a folha de respostas separada.
+_Avoid_: Cartão-resposta
+
 **Marcadores**:
 Os quatro quadrados pretos nos cantos da folha de respostas, usados para localizar e endireitar a folha na foto.
 

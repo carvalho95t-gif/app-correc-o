@@ -1,10 +1,11 @@
 // Liga as telas aos módulos. A lógica fica em src/.
-import { montarLayout } from './src/layout.js';
-import { folhaSVG } from './src/folha.js';
+import { montarLayout, montarQuadro, MAX_QUADRO } from './src/layout.js';
+import { folhaSVG, quadroSVG } from './src/folha.js';
+import { qrSVG, textoQR, lerQR } from './src/qr.js';
 import { carregar, salvar, definirProva, arquivoInicial, ativo, comAtivo, escolher, novaProva, apagarProva, listar,
   acharPorNome, validarAreas, registrar, chave, remover, marcarExportado, definirLista, nomeDo, versaoDe } from './src/estado.js';
 import { montarPlanilha, nomeArquivo, porTurma, notaDe, lerPlanilha } from './src/planilha.js';
-import { paraCinza, lerFolha, homografia, aplicar, acharMarcadores, quadroPronto } from './src/leitor.js';
+import { paraCinza, lerFolha, homografia, aplicar, acharMarcadores, quadroPronto, razaoDe } from './src/leitor.js';
 import { codificar } from './src/codigo.js';
 import { cadernoHTML, estiloDePagina } from './src/caderno.js';
 import { ehEmbaralhada, cadernoDaVersao } from './src/embaralhar.js';
@@ -33,6 +34,11 @@ let editando = 0; // versão cujo gabarito está sendo editado
 const numQuestoes = p => p.versoes[0].gabarito.length;
 // Prova embaralhada: cada versão tem sua folha, com a versão no código, sem bolinhas de versão.
 const layoutDa = p => montarLayout(numQuestoes(p), ehEmbaralhada(p) ? 1 : p.versoes.length, p.alternativas);
+// Quadro do gabarito na página 1 (provas com caderno de até 30 questões). Os marcadores ficam no mesmo
+// lugar com qualquer número de questões, então o QR de outra prova é lido com o quadro desta.
+const quadroDa = p => montarQuadro(Math.min(numQuestoes(p), MAX_QUADRO), p.alternativas);
+const cabeNoQuadro = p => numQuestoes(p) <= MAX_QUADRO;
+const RAZOES = [razaoDe(montarQuadro(1)), razaoDe(montarLayout(1))];
 
 function gravar(novoArquivo) {
   arquivo = novoArquivo; estado = ativo(arquivo);
@@ -348,8 +354,17 @@ function renderFolha() {
   const comCaderno = temCaderno(prova);
   $('#imprimir-caderno').hidden = !comCaderno;
   // Para imprimir: o caderno de cada versão seguido da sua folha.
+  const quadro = comCaderno && cabeNoQuadro(prova);
+  const quadroDe = k => {
+    const l = quadroDa(prova), v = emb ? 'ABCD'[k] : null;
+    return `<div class="quadro-gabarito">${quadroSVG(l, qrSVG(textoQR(prova.codigo, v), l.qr.x, l.qr.y, l.qr.lado), `${prova.codigo}${v ? `.${v}` : ''}`)}</div>`;
+  };
+  $('#imprimir-caderno').textContent = quadro ? 'Imprimir prova' : 'Imprimir caderno e folha';
+  $('#aviso-quadro').hidden = !comCaderno || quadro;
+  // Para imprimir: cada versão com o quadro do gabarito na página 1, ou seguida da folha quando não cabe.
   $('#caderno').innerHTML = !comCaderno ? '' : (emb ? prova.versoes : [0]).map((_, k) =>
-    cadernoHTML(comImagens(cadernoDaVersao(prova, k)), emb ? `Versão ${'ABCD'[k]}` : '') + `<div class="folha-impressa">${folhas[k]}</div>`).join('') +
+    cadernoHTML(comImagens(cadernoDaVersao(prova, k)), emb ? `Versão ${'ABCD'[k]}` : '', quadro ? quadroDe(k) : '') +
+    (quadro ? '' : `<div class="folha-impressa">${folhas[k]}</div>`)).join('') +
     `<style>${estiloDePagina(prova)}</style>`;
   $('#pagina').textContent = `@page { size: A4 ${duas ? 'landscape' : 'portrait'}; margin: 0; }`;
 }
@@ -376,6 +391,24 @@ $('#foto').addEventListener('change', async e => {
   await lerImagem(img, img.width, img.height);
 });
 
+// Tenta o quadro do gabarito (página 1 da prova) e depois a folha avulsa. No quadro, a prova vem do QR.
+async function ler(cinza, foto, prova) {
+  const q = quadroDa(prova), lq = lerFolha(cinza, q);
+  if (!lq) { const f = layoutDa(prova); return [f, lerFolha(cinza, f)]; }
+  lq.codigo = await lerQR(recorteQR(foto, q, lq.marcadoresPx));
+  return [q, lq];
+}
+// Só a região do QR (com folga), para o leitor achar rápido.
+function recorteQR(foto, layout, marcadoresPx) {
+  const H = homografia(layout.marcadores, marcadoresPx), { x, y, lado } = layout.qr, f = 4;
+  const ps = [[x - f, y - f], [x + lado + f, y - f], [x + lado + f, y + lado + f], [x - f, y + lado + f]].map(([a, b]) => aplicar(H, a, b));
+  const x0 = Math.max(0, Math.floor(Math.min(...ps.map(p => p.x)))), y0 = Math.max(0, Math.floor(Math.min(...ps.map(p => p.y))));
+  const x1 = Math.min(foto.width, Math.ceil(Math.max(...ps.map(p => p.x)))), y1 = Math.min(foto.height, Math.ceil(Math.max(...ps.map(p => p.y))));
+  const w = x1 - x0, h = y1 - y0, out = new ImageData(w, h);
+  for (let r = 0; r < h; r++) out.data.set(foto.data.subarray(4 * ((y0 + r) * foto.width + x0), 4 * ((y0 + r) * foto.width + x1)), 4 * r * w);
+  return out;
+}
+
 // Lê uma foto ou um quadro da câmera (qualquer coisa que o canvas desenhe) e abre a conferência.
 async function lerImagem(img, largura, altura) {
   $('#lendo').hidden = false;
@@ -387,7 +420,7 @@ async function lerImagem(img, largura, altura) {
     ctx.drawImage(img, 0, 0, cv.width, cv.height);
     const foto = ctx.getImageData(0, 0, cv.width, cv.height);
     const cinza = paraCinza(foto);
-    let layout = layoutDa(estado.prova), l = lerFolha(cinza, layout);
+    let [layout, l] = await ler(cinza, foto, estado.prova);
     if (!l) { mostrarErro('Não encontrei os 4 quadrados pretos da folha. Enquadre a folha inteira, com boa luz, e fotografe de novo.'); return; }
     // O código fica no mesmo lugar em todas as folhas: lido com qualquer layout, decide a prova.
     const daFolha = l.codigo && idDoCodigo(l.codigo.prova);
@@ -396,9 +429,10 @@ async function lerImagem(img, largura, altura) {
       const nome = arquivo.provas[daFolha].prova.nome;
       if (await perguntar(`Esta folha é da prova "${nome}". Corrigir nela?`, `Corrigir em "${nome}"`, `Manter "${estado.prova.nome}"`)) {
         gravar(escolher(arquivo, daFolha)); rascunho = structuredClone(estado.prova); renderCorrigir();
-        layout = layoutDa(estado.prova); l = lerFolha(cinza, layout);
+        [layout, l] = await ler(cinza, foto, estado.prova);
       } else aviso = `Esta folha é da prova "${nome}", mas você escolheu corrigir em "${estado.prova.nome}".`;
     }
+    if (layout.tipo === 'quadro' && !cabeNoQuadro(estado.prova)) { mostrarErro(`Este quadro do gabarito não é da prova "${estado.prova.nome}". Escolha a prova certa e fotografe de novo.`); return; }
     $('#aviso-codigo').textContent = aviso; $('#aviso-codigo').hidden = !aviso;
     leitura = {
       layout, foto, H: homografia(layout.marcadores, l.marcadoresPx),
@@ -443,7 +477,8 @@ async function abrirCamera() {
     const f = Math.min(1, 480 / Math.max(video.videoWidth, video.videoHeight));
     pequeno.width = Math.round(video.videoWidth * f); pequeno.height = Math.round(video.videoHeight * f);
     cx.drawImage(video, 0, 0, pequeno.width, pequeno.height);
-    const m = acharMarcadores(paraCinza(cx.getImageData(0, 0, pequeno.width, pequeno.height)));
+    const c = paraCinza(cx.getImageData(0, 0, pequeno.width, pequeno.height));
+    const m = RAZOES.map(r => acharMarcadores(c, r)).find(Boolean) ?? null;
     camera.historico = [...camera.historico.slice(-2), m];
     $('#camera-status').textContent = m ? 'Achei a folha. Segure parado…' : 'Procurando os 4 quadrados pretos…';
     if (quadroPronto(camera.historico, pequeno.width)) capturar(video);

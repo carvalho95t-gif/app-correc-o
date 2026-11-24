@@ -1,9 +1,9 @@
 // Guarda os arquivos do app para funcionar sem internet. Responde do cache na hora e atualiza
 // o cache pela rede em segundo plano, então uma versão nova aparece na abertura seguinte.
-const VERSAO = 'correcao-v4';
+const VERSAO = 'correcao-v5';
 const ARQUIVOS = ['./', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest',
-  'src/layout.js', 'src/folha.js', 'src/leitor.js', 'src/nota.js', 'src/estado.js', 'src/planilha.js', 'src/codigo.js', 'src/caderno.js', 'src/imagens.js', 'src/embaralhar.js',
-  'vendor/xlsx.mini.min.js'];
+  'src/layout.js', 'src/folha.js', 'src/leitor.js', 'src/nota.js', 'src/estado.js', 'src/planilha.js', 'src/codigo.js', 'src/caderno.js', 'src/imagens.js', 'src/embaralhar.js', 'src/qr.js',
+  'vendor/xlsx.mini.min.js', 'vendor/qrcode-generator.js', 'vendor/jsQR.js'];
 
 self.addEventListener('install', e => e.waitUntil(caches.open(VERSAO).then(c => c.addAll(ARQUIVOS)).then(() => self.skipWaiting())));
 self.addEventListener('activate', e => e.waitUntil(

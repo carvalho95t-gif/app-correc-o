@@ -481,7 +481,7 @@ test('caderno: digitar 3 questões, gabarito sai do caderno e a impressão traz 
   await ctx.close();
 });
 
-test('impressão: folha em 1 página e caderno curto + folha em 2 páginas', async () => {
+test('impressão: folha em 1 página e prova curta sem folha separada', async () => {
   const paginas = pdf => (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
   const { ctx, page } = await abrirApp();
   await criarProva(page, { gabarito: 'ABCDE' });
@@ -493,7 +493,7 @@ test('impressão: folha em 1 página e caderno curto + folha em 2 páginas', asy
   await page.click('#salvar-prova');
   await page.click('#aba-folha');
   await page.evaluate(() => { document.querySelector('#folha').before(document.querySelector('#caderno')); document.body.classList.add('com-caderno'); });
-  assert.equal(paginas(await page.pdf({ preferCSSPageSize: true })), 4); // página 1, duas de questões, folha
+  assert.equal(paginas(await page.pdf({ preferCSSPageSize: true })), 3); // página 1 com o quadro do gabarito, duas de questões
   await ctx.close();
 });
 
