@@ -71,6 +71,7 @@ function renderProva() {
     `<button data-versao="${'ABCD'[k]}" aria-pressed="${k === editando}">Versão ${'ABCD'[k]}</button>`).join('');
   const { gabarito, anuladas } = rascunho.versoes[editando];
   $('#prova-valor').value = rascunho.valor;
+  $('#pesos-resumo').textContent = resumoPesos(rascunho.pesos ?? []);
   $('#gabarito').innerHTML = gabarito.map((g, i) => `
     <div class="linha" role="group" aria-label="Questão ${i + 1}">
       <span class="num">${i + 1}</span>
@@ -78,6 +79,26 @@ function renderProva() {
       <label><input type="checkbox" data-anular="${i}" ${anuladas.includes(i) ? 'checked' : ''}> Anular</label>
     </div>`).join('');
 }
+// "Questões 1 a 5 valem 2; as outras valem 1."
+function resumoPesos(pesos) {
+  const grupos = [];
+  pesos.forEach((p, i) => {
+    if (p === 1) return;
+    const g = grupos.at(-1);
+    if (g && g.p === p && g.ate === i - 1) g.ate = i; else grupos.push({ p, de: i, ate: i });
+  });
+  if (!grupos.length) return 'Todas as questões valem 1.';
+  const fmt = g => `${g.de === g.ate ? `Questão ${g.de + 1} vale` : `Questões ${g.de + 1} a ${g.ate + 1} valem`} ${String(g.p).replace('.', ',')}`;
+  return `${grupos.map(fmt).join('; ')}; as outras valem 1.`;
+}
+$('#aplicar-peso').addEventListener('click', () => {
+  const n = numQuestoes(rascunho), p = Number($('#peso-valor').value.replace(',', '.'));
+  const de = parseInt($('#peso-de').value, 10), ate = parseInt($('#peso-ate').value, 10);
+  if (!(p > 0)) { $('#pesos-resumo').textContent = 'O peso precisa ser maior que zero.'; return; }
+  if (!(de >= 1 && ate >= de && ate <= n)) { $('#pesos-resumo').textContent = `Escolha questões entre 1 e ${n}, com a primeira antes da última.`; return; }
+  rascunho.pesos = Array.from({ length: n }, (_, i) => (i >= de - 1 && i <= ate - 1 ? p : rascunho.pesos?.[i] ?? 1));
+  $('#pesos-resumo').textContent = resumoPesos(rascunho.pesos);
+});
 $('#prova-ativa').addEventListener('change', e => {
   if (!e.target.value) return;
   gravar(escolher(arquivo, e.target.value));
@@ -129,6 +150,7 @@ $('#prova-num').addEventListener('change', e => {
   if (n === numQuestoes(rascunho)) return; // evita redesenhar a lista no meio de um toque
   rascunho.versoes = rascunho.versoes.map(v => ({
     gabarito: Array.from({ length: n }, (_, i) => v.gabarito[i] ?? ''), anuladas: v.anuladas.filter(i => i < n) }));
+  if (rascunho.pesos) rascunho.pesos = Array.from({ length: n }, (_, i) => rascunho.pesos[i] ?? 1);
   renderProva();
 });
 $('#prova-versoes').addEventListener('change', e => {
@@ -164,7 +186,7 @@ $('#salvar-prova').addEventListener('click', () => {
     if (faltam.length) { msg.textContent = `Falta o gabarito${daVersao} da questão ${faltam.join(', ')}. Marque a alternativa certa ou anule a questão.`; return; }
   }
   try {
-    persistir(definirProva(estado, { nome: rascunho.nome.trim(), valor,
+    persistir(definirProva(estado, { nome: rascunho.nome.trim(), valor, ...(rascunho.pesos?.some(p => p !== 1) ? { pesos: [...rascunho.pesos] } : {}),
       versoes: rascunho.versoes.map(v => ({ gabarito: v.gabarito.map(g => g || 'A'), anuladas: [...v.anuladas] })) }));
     msg.textContent = 'Prova salva. Agora imprima a folha na aba Folha.';
   } catch (err) { msg.textContent = err.message; }
@@ -254,7 +276,7 @@ function renderConferencia() {
 
 function atualizarConferencia() {
   const p = versaoAtual(), v = leitura.valores;
-  const c = corrigir(p.gabarito, p.anuladas, v.map(x => x || 'branco'));
+  const c = corrigir(p.gabarito, p.anuladas, v.map(x => x || 'branco'), estado.prova.pesos);
   $('#placar').textContent = `${c.acertos} de ${c.total} acertos · nota ${nota1(c.nota)}`;
   const faltam = v.flatMap((x, i) => (x === '' ? [i + 1] : []));
   const numeroOk = /^\d{1,2}$/.test($('#numero').value.trim()), versaoOk = $('#versao').value !== '';

@@ -321,3 +321,18 @@ test('restaurar por cima de uma prova com correções não exportadas avisa a pe
   assert.match(await page.textContent('#dlg-msg'), /ainda não estão em nenhuma planilha e serão perdidas/);
   await ctx.close();
 });
+
+test('peso por questão: peso 2 nas questões 1 a 5 muda a nota da conferência', async () => {
+  const { ctx, page } = await abrirApp();
+  await criarProva(page);
+  await page.fill('#peso-valor', '2');
+  await page.fill('#peso-de', '1');
+  await page.fill('#peso-ate', '5');
+  await page.click('#aplicar-peso');
+  assert.match(await page.textContent('#pesos-resumo'), /1 a 5 valem 2/);
+  await page.click('#salvar-prova');
+  // Gabarito ABCDEABCDE; marcou ABCDE EEEEE: Q1–Q5 (10 pontos) + Q10 (1) = 11 de 15 → 7,3.
+  await fotografarECorrigir(page, '2A', '01', [...'ABCDEEEEEE']);
+  assert.match(await page.textContent('#placar'), /6 de 10 acertos · nota 7,3/);
+  await ctx.close();
+});

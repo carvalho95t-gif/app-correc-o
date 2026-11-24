@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Seam Planilha: nota com pesos e anulada; coluna Pontos só quando há peso ≠ 1; com todos os pesos 1, nada muda
 - [ ] Seam Planilha: restaurar traz os pesos

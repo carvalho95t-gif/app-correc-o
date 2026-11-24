@@ -21,22 +21,23 @@ function nomeAba(t, usados) {
 const numeroBR = n => n.toLocaleString('pt-BR');
 
 const LETRA = 'ABCD';
-export const notaDe = (prova, c) => { const v = versaoDe(prova, c.versao); return corrigir(v.gabarito, v.anuladas, c.respostas); };
+export const notaDe = (prova, c) => { const v = versaoDe(prova, c.versao); return corrigir(v.gabarito, v.anuladas, c.respostas, prova.pesos); };
 const comGabarito = v => v.gabarito.map((g, i) => (v.anuladas.includes(i) ? 'ANULADA' : g));
 
 function abaTurma(estado, turma, correcoes) {
   const { prova } = estado, comValor = prova.valor !== 10, comNomes = !!estado.chamadas?.[turma], comVersoes = prova.versoes.length > 1;
   const nome = c => (comNomes ? [nomeDo(estado, turma, c.numero)] : []);
-  const n = prova.versoes[0].gabarito.length;
+  const n = prova.versoes[0].gabarito.length, comPesos = !!prova.pesos?.some(p => p !== 1);
   const cabecalho = ['Nº', ...(comNomes ? ['Nome'] : []), ...(comVersoes ? ['Versão'] : []), ...[...Array(n)].map((_, i) => `Q${i + 1}`),
-    'Acertos', '%', 'Nota', ...(comValor ? [`Nota (valor ${numeroBR(prova.valor)})`] : [])];
+    'Acertos', ...(comPesos ? ['Pontos'] : []), '%', 'Nota', ...(comValor ? [`Nota (valor ${numeroBR(prova.valor)})`] : [])];
+  const pesos = comPesos ? [['Peso', ...(comNomes ? [''] : []), ...(comVersoes ? [''] : []), ...prova.pesos]] : [];
   const gabaritos = prova.versoes.map((v, i) => ['Gabarito', ...(comNomes ? [''] : []), ...(comVersoes ? [LETRA[i]] : []), ...comGabarito(v)]);
   const alunos = correcoes.map(c => {
     const r = notaDe(prova, c);
-    const extra = comValor ? [Math.round((r.acertos / r.total) * prova.valor * 10) / 10] : [];
-    return [c.numero, ...nome(c), ...(comVersoes ? [c.versao ?? 'A'] : []), ...c.respostas, r.acertos, r.percentual, r.nota, ...extra];
+    const extra = comValor ? [Math.round((r.pontos / r.possiveis) * prova.valor * 10) / 10] : [];
+    return [c.numero, ...nome(c), ...(comVersoes ? [c.versao ?? 'A'] : []), ...c.respostas, r.acertos, ...(comPesos ? [r.pontos] : []), r.percentual, r.nota, ...extra];
   });
-  return [cabecalho, ...gabaritos, ...alunos];
+  return [cabecalho, ...pesos, ...gabaritos, ...alunos];
 }
 
 // Aqui "v" é uma versão: { gabarito, anuladas }.

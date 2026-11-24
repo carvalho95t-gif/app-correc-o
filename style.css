@@ -57,3 +57,5 @@ label.opcao[hidden] { display: none; }
 #folha.duas { display: flex; gap: 4px; }
 select#prova-versoes, select#versao { width: 100%; font-size: 1rem; min-height: 44px; padding: 8px; border: 1px solid var(--borda); border-radius: 8px; }
 #versoes-gabarito button[aria-pressed=true] { background: #111827; color: white; }
+.pesos { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+.pesos input { width: 4.5em; }

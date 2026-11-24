@@ -187,3 +187,24 @@ test('lista de chamada aceita número colado ao separador', () => {
   const l = linhas(montarPlanilha(XLSX, definirLista(estadoExemplo(), '2B', '3-Ana\n4.Bruno')), '2B');
   assert.deepEqual(l.slice(2).map(r => r.slice(0, 2)), [['03', 'Ana'], ['04', 'Bruno']]);
 });
+
+test('peso por questão: nota por pontos, anulada dá o peso cheio e aparece a coluna Pontos', () => {
+  // Gabarito A B C D, pesos 3 1 1 1 (6 pontos). 2B nº 03 marcou A E E D: acertou Q1 e Q4 = 4 pontos → 6,7.
+  const l = linhas(montarPlanilha(XLSX, estadoExemplo({ pesos: [3, 1, 1, 1] })), '2B');
+  assert.deepEqual(l[0], ['Nº', 'Q1', 'Q2', 'Q3', 'Q4', 'Acertos', 'Pontos', '%', 'Nota']);
+  assert.deepEqual(l[1].slice(0, 5), ['Peso', 3, 1, 1, 1]);
+  assert.deepEqual(l[3], ['03', 'A', 'E', 'E', 'D', 2, 4, 67, 6.7]);
+  // Anulando a Q2 (peso 1): nº 04 (branco E dupla D) fica com Q2 + Q4 = 2 pontos → 3,3.
+  const a = linhas(montarPlanilha(XLSX, estadoExemplo({ pesos: [3, 1, 1, 1], anuladas: [1] })), '2B');
+  assert.deepEqual(a[4].slice(5), [2, 2, 33, 3.3]);
+});
+
+test('com todos os pesos 1 a planilha não muda', () => {
+  const l = linhas(montarPlanilha(XLSX, estadoExemplo({ pesos: [1, 1, 1, 1] })), '2B');
+  assert.deepEqual(l[0], ['Nº', 'Q1', 'Q2', 'Q3', 'Q4', 'Acertos', '%', 'Nota']);
+});
+
+test('restaurar traz os pesos', () => {
+  const wb = releitura(montarPlanilha(XLSX, estadoExemplo({ pesos: [3, 1, 1, 1] })));
+  assert.deepEqual(lerPlanilha(XLSX, wb).prova.pesos, [3, 1, 1, 1]);
+});
