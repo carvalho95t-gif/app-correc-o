@@ -208,3 +208,17 @@ test('restaurar traz os pesos', () => {
   const wb = releitura(montarPlanilha(XLSX, estadoExemplo({ pesos: [3, 1, 1, 1] })));
   assert.deepEqual(lerPlanilha(XLSX, wb).prova.pesos, [3, 1, 1, 1]);
 });
+
+test('prova C/E: nota e Análise com as colunas C e E', () => {
+  let e = definirProva(estadoInicial(), { nome: 'CE', valor: 10, alternativas: 'CE', versoes: [{ gabarito: ['C', 'E', 'C'], anuladas: [] }] });
+  e = registrar(e, corr('1A', '01', ['C', 'C', 'branco']));
+  const wb = releitura(montarPlanilha(XLSX, e));
+  assert.deepEqual(linhas(wb, '1A')[2].slice(4), [1, 33, 3.3]);
+  const cab = linhas(wb, 'Análise')[0];
+  assert.ok(cab.includes('C') && cab.includes('E') && !cab.includes('A') && !cab.includes('D'), cab.join());
+});
+
+test('não dá para mudar as alternativas com correções salvas', () => {
+  const e = estadoExemplo();
+  assert.throws(() => definirProva(e, { ...e.prova, alternativas: 'ABCD' }), /outras alternativas/);
+});

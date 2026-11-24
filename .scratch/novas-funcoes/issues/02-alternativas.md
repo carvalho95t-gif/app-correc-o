@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Seam Leitura: folhas A–D, A–B e C/E lidas certo, incluindo branco e dupla
 - [ ] Seam Planilha: prova C/E com nota e Análise com as colunas C e E

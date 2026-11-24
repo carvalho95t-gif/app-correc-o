@@ -336,3 +336,17 @@ test('peso por questão: peso 2 nas questões 1 a 5 muda a nota da conferência'
   assert.match(await page.textContent('#placar'), /6 de 10 acertos · nota 7,3/);
   await ctx.close();
 });
+
+test('prova A–D: gabarito, folha e conferência só com A a D', async () => {
+  const { ctx, page } = await abrirApp();
+  await criarProva(page, { gabarito: 'ABCDABCD', alternativas: 'ABCD' });
+  assert.equal(await page.locator('#gabarito .linha').first().locator('button').count(), 4);
+  await page.click('#aba-folha');
+  assert.equal(await page.locator('#folha circle[data-q="0"]').count(), 4);
+  await fotografarECorrigir(page, '3A', '02', [...'ABCDABCC']);
+  assert.match(await page.textContent('#placar'), /7 de 8/);
+  assert.deepEqual(await page.$$eval('#respostas select[data-q="0"] option', os => os.map(o => o.value)), ['A', 'B', 'C', 'D', 'branco', 'dupla']);
+  await page.click('#salvar-leitura');
+  assert.match(await page.textContent('#corrigir-msg'), /nº 02 \(3A\) salva/);
+  await ctx.close();
+});

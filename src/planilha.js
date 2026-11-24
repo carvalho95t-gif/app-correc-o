@@ -56,7 +56,7 @@ function discriminacao(acertos, totais) {
   return Math.round(((mediaDe(true) - mediaDe(false)) / dp) * Math.sqrt(p * (1 - p)) * 100) / 100;
 }
 
-function analise(v, turmas) {
+function analise(v, turmas, alternativas = 'ABCDE') {
   const todos = Object.values(turmas).flat();
   const totais = todos.map(c => corrigir(v.gabarito, v.anuladas, c.respostas).acertos);
   return v.gabarito.map((g, i) => {
@@ -68,7 +68,7 @@ function analise(v, turmas) {
       Gabarito: v.anuladas.includes(i) ? 'ANULADA' : g,
       '% acerto geral': geral,
       ...Object.fromEntries(Object.entries(turmas).map(([t, cs]) => [`% acerto ${t}`, pct(cs.filter(c => acertou(v, c, i)).length, cs.length)])),
-      A: conta('A'), B: conta('B'), C: conta('C'), D: conta('D'), E: conta('E'), Branco: conta('branco'), Dupla: conta('dupla'),
+      ...Object.fromEntries([...alternativas].map(a => [a, conta(a)])), Branco: conta('branco'), Dupla: conta('dupla'),
       Dificuldade: geral >= 85 ? 'Fácil' : geral >= 50 ? 'Média' : 'Difícil',
       Discriminação: d,
       Revisar: d !== '' && d < 0.2 ? 'Revisar' : '',
@@ -106,7 +106,7 @@ export function montarPlanilha(XLSX, estado) {
       const daVersao = Object.fromEntries(Object.entries(turmas)
         .map(([t, cs]) => [t, cs.filter(c => (c.versao ?? 'A') === LETRA[k])]).filter(([, cs]) => cs.length));
       if (Object.keys(daVersao).length)
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(analise(v, daVersao)), prova.versoes.length > 1 ? `Análise ${LETRA[k]}` : 'Análise');
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(analise(v, daVersao, prova.alternativas)), prova.versoes.length > 1 ? `Análise ${LETRA[k]}` : 'Análise');
     });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumo(prova, turmas)), 'Resumo');
   }

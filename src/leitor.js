@@ -1,7 +1,6 @@
 // Leitura da folha de respostas a partir de uma imagem em tons de cinza {width, height, data}.
 export const MARCADO = 0.45;
 export const VAZIO = 0.20;
-const LETRAS = 'ABCDE';
 
 // Homografia que leva origem[i] -> destino[i] (4 pontos), como array de 9 números.
 export function homografia(origem, destino) {
@@ -37,9 +36,9 @@ function avaliar(preenchimentos) {
   };
 }
 
-export function classificar(preenchimentos) {
+export function classificar(preenchimentos, letras = 'ABCDE') {
   const { indice, duvidosa } = avaliar(preenchimentos);
-  return { marca: indice >= 0 ? LETRAS[indice] : indice === -1 ? 'branco' : 'dupla', duvidosa };
+  return { marca: indice >= 0 ? letras[indice] : indice === -1 ? 'branco' : 'dupla', duvidosa };
 }
 
 const mediana = v => v.sort((a, b) => a - b)[v.length >> 1];
@@ -71,7 +70,7 @@ export function lerComMarcadores(cinza, layout, marcadoresPx) {
 
   const respostas = layout.questoes.map(q => {
     const preenchimentos = q.map(preenchimento);
-    return { ...classificar(preenchimentos), preenchimentos };
+    return { ...classificar(preenchimentos, layout.alternativas), preenchimentos };
   });
   const digitos = layout.numero.map(col => avaliar(col.map(preenchimento)));
   const versao = layout.versao ? avaliar(layout.versao.map(preenchimento)) : { indice: 0, duvidosa: false };

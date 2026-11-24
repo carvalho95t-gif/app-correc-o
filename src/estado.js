@@ -37,6 +37,8 @@ export function definirProva(estado, prova) {
   const correcoes = Object.values(estado.correcoes), temCorrecoes = correcoes.length > 0;
   if (temCorrecoes && estado.prova && estado.prova.versoes[0].gabarito.length !== prova.versoes[0].gabarito.length)
     throw new Error('Já há correções com outro número de questões. Baixe a planilha e comece uma nova prova.');
+  if (temCorrecoes && estado.prova && (estado.prova.alternativas ?? 'ABCDE') !== (prova.alternativas ?? 'ABCDE'))
+    throw new Error('Já há correções com outras alternativas. Baixe a planilha e comece uma nova prova.');
   const semVersao = correcoes.find(c => 'ABCD'.indexOf(c.versao ?? 'A') >= prova.versoes.length);
   if (semVersao) throw new Error(`Já há correções da versão ${semVersao.versao}. Não dá para tirar essa versão.`);
   return { ...estado, prova, pendente: estado.pendente || temCorrecoes };

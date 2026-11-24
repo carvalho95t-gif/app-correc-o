@@ -20,7 +20,7 @@ export function folhaSVG(layout, nomeProva) {
     ...layout.numero.flatMap((col, c) => col.map((p, d) => bolinha(p, d, `data-dig="${c}-${d}"`))),
     ...layout.questoes.flatMap((q, i) => [
       `<text x="${q[0].x - 4}" y="${q[0].y + 1.2}" font-size="3.2" text-anchor="end" font-weight="bold">${i + 1}</text>`,
-      ...q.map((p, j) => bolinha(p, 'ABCDE'[j], `data-q="${i}" data-alt="${'ABCDE'[j]}"`)),
+      ...q.map((p, j) => bolinha(p, layout.alternativas[j], `data-q="${i}" data-alt="${layout.alternativas[j]}"`)),
     ]),
   ];
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}mm" height="${h}mm" font-family="Arial, sans-serif"><rect width="${w}" height="${h}" fill="white"/>${partes.join('')}</svg>`;

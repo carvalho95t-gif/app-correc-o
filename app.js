@@ -8,7 +8,7 @@ import { paraCinza, lerFolha, homografia, aplicar } from './src/leitor.js';
 import { corrigir } from './src/nota.js';
 
 const $ = s => document.querySelector(s);
-const LETRAS = [...'ABCDE'];
+const letras = p => [...(p.alternativas ?? 'ABCDE')];
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const ROTULO = { branco: 'Em branco', dupla: 'Dupla marcação' };
 const nota1 = n => n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -22,7 +22,7 @@ const provaEmBranco = () => ({ nome: '', valor: 10, versoes: [{ gabarito: Array(
 let rascunho = estado.prova ? structuredClone(estado.prova) : provaEmBranco();
 let editando = 0; // versão cujo gabarito está sendo editado
 const numQuestoes = p => p.versoes[0].gabarito.length;
-const layoutDa = p => montarLayout(numQuestoes(p), p.versoes.length);
+const layoutDa = p => montarLayout(numQuestoes(p), p.versoes.length, p.alternativas);
 
 function gravar(novoArquivo) {
   arquivo = novoArquivo; estado = ativo(arquivo);
@@ -64,6 +64,7 @@ function renderProva() {
     provas.map(p => `<option value="${p.id}" ${p.id === arquivo.ativa ? 'selected' : ''}>${esc(p.nome)}</option>`).join('');
   $('#prova-nome').value = rascunho.nome;
   $('#prova-num').value = numQuestoes(rascunho);
+  $('#prova-alternativas').value = rascunho.alternativas ?? 'ABCDE';
   $('#prova-versoes').value = rascunho.versoes.length;
   if (editando >= rascunho.versoes.length) editando = 0;
   $('#versoes-gabarito').hidden = rascunho.versoes.length < 2;
@@ -75,7 +76,7 @@ function renderProva() {
   $('#gabarito').innerHTML = gabarito.map((g, i) => `
     <div class="linha" role="group" aria-label="Questão ${i + 1}">
       <span class="num">${i + 1}</span>
-      ${LETRAS.map(a => `<button data-q="${i}" data-alt="${a}" aria-pressed="${g === a}" aria-label="Questão ${i + 1}, alternativa ${a}">${a}</button>`).join('')}
+      ${letras(rascunho).map(a => `<button data-q="${i}" data-alt="${a}" aria-pressed="${g === a}" aria-label="Questão ${i + 1}, alternativa ${a}">${a}</button>`).join('')}
       <label><input type="checkbox" data-anular="${i}" ${anuladas.includes(i) ? 'checked' : ''}> Anular</label>
     </div>`).join('');
 }
@@ -153,6 +154,11 @@ $('#prova-num').addEventListener('change', e => {
   if (rascunho.pesos) rascunho.pesos = Array.from({ length: n }, (_, i) => rascunho.pesos[i] ?? 1);
   renderProva();
 });
+$('#prova-alternativas').addEventListener('change', e => {
+  rascunho.alternativas = e.target.value;
+  rascunho.versoes = rascunho.versoes.map(v => ({ ...v, gabarito: v.gabarito.map(g => (e.target.value.includes(g) ? g : '')) }));
+  renderProva();
+});
 $('#prova-versoes').addEventListener('change', e => {
   const k = +e.target.value, n = numQuestoes(rascunho);
   rascunho.versoes = Array.from({ length: k }, (_, i) => rascunho.versoes[i] ?? { gabarito: Array(n).fill(''), anuladas: [] });
@@ -186,8 +192,8 @@ $('#salvar-prova').addEventListener('click', () => {
     if (faltam.length) { msg.textContent = `Falta o gabarito${daVersao} da questão ${faltam.join(', ')}. Marque a alternativa certa ou anule a questão.`; return; }
   }
   try {
-    persistir(definirProva(estado, { nome: rascunho.nome.trim(), valor, ...(rascunho.pesos?.some(p => p !== 1) ? { pesos: [...rascunho.pesos] } : {}),
-      versoes: rascunho.versoes.map(v => ({ gabarito: v.gabarito.map(g => g || 'A'), anuladas: [...v.anuladas] })) }));
+    persistir(definirProva(estado, { nome: rascunho.nome.trim(), valor, ...((rascunho.alternativas ?? 'ABCDE') !== 'ABCDE' ? { alternativas: rascunho.alternativas } : {}), ...(rascunho.pesos?.some(p => p !== 1) ? { pesos: [...rascunho.pesos] } : {}),
+      versoes: rascunho.versoes.map(v => ({ gabarito: v.gabarito.map(g => g || letras(rascunho)[0]), anuladas: [...v.anuladas] })) }));
     msg.textContent = 'Prova salva. Agora imprima a folha na aba Folha.';
   } catch (err) { msg.textContent = err.message; }
 });
@@ -269,7 +275,7 @@ function renderConferencia() {
     <label class="${situacao(i)}">Q${i + 1}
       <select data-q="${i}" aria-label="Resposta da questão ${i + 1}">
         ${v === '' ? '<option value="" selected>Confira</option>' : ''}
-        ${[...LETRAS, 'branco', 'dupla'].map(o => `<option value="${o}" ${o === v ? 'selected' : ''}>${ROTULO[o] ?? o}</option>`).join('')}
+        ${[...letras(estado.prova), 'branco', 'dupla'].map(o => `<option value="${o}" ${o === v ? 'selected' : ''}>${ROTULO[o] ?? o}</option>`).join('')}
       </select></label>`).join('');
   atualizarConferencia();
 }
@@ -298,8 +304,8 @@ function desenhar() {
   const raioPx = Math.hypot(b.x - a.x, b.y - a.y);
   ctx.lineWidth = Math.max(2, raioPx / 3);
   layout.questoes.forEach((q, i) => {
-    const j = LETRAS.indexOf(leitura.valores[i]);
-    const alvo = q[j >= 0 ? j : LETRAS.indexOf(versaoAtual().gabarito[i])];
+    const j = letras(estado.prova).indexOf(leitura.valores[i]);
+    const alvo = q[j >= 0 ? j : letras(estado.prova).indexOf(versaoAtual().gabarito[i])];
     const p = aplicar(H, alvo.x, alvo.y);
     ctx.strokeStyle = cor[situacao(i)];
     ctx.beginPath(); ctx.arc(p.x, p.y, raioPx * 1.6, 0, 2 * Math.PI); ctx.stroke();

@@ -30,7 +30,7 @@ export function gerarFoto(layout, marcas, opcoes = {}) {
   const o = { ...PADRAO, ...opcoes };
   const { W, H: Ht, cantos } = cantosPagina(layout, o);
   const inv = homografia(cantos, pagina(layout));
-  const r = layout.raio, L = 'ABCDE';
+  const r = layout.raio, L = layout.alternativas;
   const bolhas = [];
   layout.questoes.forEach((q, i) => {
     const m = marcas.respostas?.[i];

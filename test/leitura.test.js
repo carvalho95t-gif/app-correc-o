@@ -90,3 +90,15 @@ test('versão em branco ou dupla fica sem versão', () => {
 test('prova de uma versão só é sempre versão A', () => {
   assert.equal(lerFolha(gerarFoto(layout, { numero: '05', respostas }), layout).versao, 'A');
 });
+
+// ---------- novas funções 02: alternativas da prova ----------
+for (const [alts, resp, esp] of [
+  ['ABCD', ['A', 'D', null, ['B', 'C'], 'C'], ['A', 'D', 'branco', 'dupla', 'C']],
+  ['AB', ['B', 'A', null, ['A', 'B'], 'B'], ['B', 'A', 'branco', 'dupla', 'B']],
+  ['CE', ['C', 'E', null, ['C', 'E'], 'E'], ['C', 'E', 'branco', 'dupla', 'E']],
+]) test(`folha com alternativas ${alts}: só essas bolinhas e leitura certa`, () => {
+  const l5 = montarLayout(5, 1, alts);
+  assert.ok(l5.questoes.every(q => q.length === alts.length));
+  const l = lerFolha(gerarFoto(l5, { numero: '09', respostas: resp }, { rotacaoGraus: 4 }), l5);
+  assert.deepEqual(l.respostas.map(r => r.marca), esp);
+});
