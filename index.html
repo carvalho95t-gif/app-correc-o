@@ -80,6 +80,9 @@
         <button id="aplicar-peso">Aplicar</button>
       </div>
       <p id="pesos-resumo" role="status"></p>
+      <h3>Conceitos</h3>
+      <p class="dica">Opcional. Um conceito por linha com a nota mínima, na escala do valor da prova. Ex.: "A 9", "B 7", "C 5", "D 0".</p>
+      <textarea id="prova-conceitos" rows="3" placeholder="A 9&#10;B 7&#10;C 5&#10;D 0"></textarea>
       <h3>Áreas</h3>
       <p class="dica">Opcional. Ex.: Linguagens da questão 1 à 45. A planilha mostra acertos e % de cada área.</p>
       <div id="areas"></div>
@@ -146,6 +149,11 @@
       <h2 id="t-resultados">Resultados</h2>
       <p id="resultados-vazio" class="dica">Nenhuma correção ainda. Fotografe a primeira folha na aba Corrigir.</p>
       <div id="resultados"></div>
+      <details id="analise-tela" hidden>
+        <summary>Análise das questões e das notas</summary>
+        <div id="analise-notas"></div>
+        <div id="analise-questoes"></div>
+      </details>
       <button id="baixar" class="primario">Baixar planilha</button>
       <details id="lista">
         <summary>Lista de chamada (nomes dos alunos)</summary>

@@ -4,7 +4,7 @@ import { folhaSVG, quadroSVG } from './src/folha.js';
 import { qrSVG, textoQR, lerQR } from './src/qr.js';
 import { carregar, salvar, definirProva, arquivoInicial, ativo, comAtivo, escolher, novaProva, apagarProva, listar,
   acharPorNome, validarAreas, registrar, chave, remover, marcarExportado, definirLista, nomeDo, versaoDe } from './src/estado.js';
-import { montarPlanilha, nomeArquivo, porTurma, notaDe, lerPlanilha, temParciais } from './src/planilha.js';
+import { montarPlanilha, nomeArquivo, porTurma, notaDe, lerPlanilha, temParciais, lerConceitos, conceitoDe, posicoes, analiseDaProva } from './src/planilha.js';
 import { paraCinza, lerFolha, homografia, aplicar, acharMarcadores, quadroPronto, razaoDe } from './src/leitor.js';
 import { codificar } from './src/codigo.js';
 import { cadernoHTML, estiloDePagina } from './src/caderno.js';
@@ -91,6 +91,7 @@ function renderProva() {
     `<button data-versao="${'ABCD'[k]}" aria-pressed="${k === editando}">Versão ${'ABCD'[k]}</button>`).join('');
   const { gabarito, anuladas } = rascunho.versoes[editando];
   $('#prova-valor').value = rascunho.valor;
+  $('#prova-conceitos').value = (rascunho.conceitos ?? []).map(f => `${f.conceito} ${String(f.min).replace('.', ',')}`).join('\n');
   $('#pesos-resumo').textContent = resumoPesos(rascunho.pesos ?? []);
   renderCadernoEditor();
   const emb = rascunho.caderno?.embaralhar ?? {};
@@ -373,11 +374,13 @@ $('#salvar-prova').addEventListener('click', () => {
     const daVersao = rascunho.versoes.length > 1 ? ` da versão ${'ABCD'[k]}` : '';
     if (faltam.length) { msg.textContent = `Falta o gabarito${daVersao} da questão ${faltam.join(', ')}. Marque a alternativa certa ou anule a questão.`; return; }
   }
+  const conceitos = lerConceitos($('#prova-conceitos').value);
+  if (!conceitos) { msg.textContent = 'Em Conceitos, escreva o conceito e a nota mínima em cada linha, por exemplo "A 9".'; return; }
   const areas = (rascunho.areas ?? []).map(a => ({ ...a, nome: a.nome.trim() }));
   const problema = validarAreas(areas, numQuestoes(rascunho));
   if (problema) { msg.textContent = problema; return; }
   try {
-    persistir(definirProva(estado, { codigo: estado.prova?.codigo ?? novoCodigo(), ...(temCaderno(rascunho) ? { caderno: structuredClone(rascunho.caderno) } : {}), ...(areas.length ? { areas } : {}), nome: rascunho.nome.trim(), valor, ...((rascunho.alternativas ?? 'ABCDE') !== 'ABCDE' ? { alternativas: rascunho.alternativas } : {}), ...(rascunho.pesos?.some(p => p !== 1) ? { pesos: [...rascunho.pesos] } : {}),
+    persistir(definirProva(estado, { codigo: estado.prova?.codigo ?? novoCodigo(), ...(temCaderno(rascunho) ? { caderno: structuredClone(rascunho.caderno) } : {}), ...(areas.length ? { areas } : {}), ...(conceitos.length ? { conceitos } : {}), nome: rascunho.nome.trim(), valor, ...((rascunho.alternativas ?? 'ABCDE') !== 'ABCDE' ? { alternativas: rascunho.alternativas } : {}), ...(rascunho.pesos?.some(p => p !== 1) ? { pesos: [...rascunho.pesos] } : {}),
       versoes: rascunho.versoes.map(v => ({ gabarito: v.gabarito.map(g => g || letras(rascunho)[0]), anuladas: [...v.anuladas],
         ...(temParciais(v) ? { parciais: v.parciais.map((o, i) => Object.fromEntries(Object.entries(o ?? {}).filter(([a, f]) => f > 0 && a !== v.gabarito[i]))) } : {}) })) }));
     renderProva();
@@ -653,15 +656,44 @@ function renderResultados() {
   const p = estado.prova, turmas = porTurma(estado);
   const vazio = Object.keys(turmas).length === 0;
   $('#resultados-vazio').hidden = !vazio; $('#baixar').hidden = vazio;
-  $('#resultados').innerHTML = Object.entries(turmas).map(([t, cs]) => `
+  const comConceito = !!p?.conceitos?.length, valor = p?.valor ?? 10;
+  $('#resultados').innerHTML = Object.entries(turmas).map(([t, cs]) => {
+    const rs = cs.map(c => notaDe(p, c)), pos = posicoes(rs.map(r => r.pontos / r.possiveis));
+    return `
     <table><caption>Turma ${t} · ${cs.length} aluno(s)</caption>
-      <thead><tr><th>Nº</th><th>Nome</th><th>Acertos</th><th>Nota</th><th><span class="oculto">Ações</span></th></tr></thead>
-      <tbody>${cs.map(c => {
-        const r = notaDe(p, c), k = chave(t, c.numero);
+      <thead><tr><th>Nº</th><th>Nome</th><th>Acertos</th><th>Nota</th><th>Posição</th>${comConceito ? '<th>Conceito</th>' : ''}<th><span class="oculto">Ações</span></th></tr></thead>
+      <tbody>${cs.map((c, j) => {
+        const r = rs[j], k = chave(t, c.numero), noValor = Math.round((r.pontos / r.possiveis) * valor * 10) / 10;
         return `<tr><td>${c.numero}${p.versoes.length > 1 ? ` (${c.versao})` : ''}${c.editado ? ' <span title="Leitura alterada por você" aria-label="leitura alterada por você">✎</span>' : ''}</td>
-          <td>${esc(nomeDo(estado, t, c.numero))}</td><td>${r.acertos}/${r.total}</td><td>${nota1(r.nota)}</td>
+          <td>${esc(nomeDo(estado, t, c.numero))}</td><td>${r.acertos}/${r.total}</td><td>${nota1(r.nota)}</td><td>${pos[j]}º</td>
+          ${comConceito ? `<td>${esc(conceitoDe(p.conceitos, noValor))}</td>` : ''}
           <td><button data-apagar="${k}" aria-label="Apagar correção do nº ${c.numero}, turma ${t}">Apagar</button></td></tr>`;
-      }).join('')}</tbody></table>`).join('');
+      }).join('')}</tbody></table>`;
+  }).join('');
+  $('#analise-tela').hidden = vazio;
+  if (!vazio) renderAnalise(analiseDaProva(estado), letras(p));
+}
+
+// Notas em 10 faixas (0–1 … 9–10) e, por questão, % de acerto e % de cada alternativa.
+// A cor de fundo vai do vermelho (pouco acerto) ao verde; a alternativa certa fica em negrito.
+function renderAnalise({ questoes, alunos, notas }, L) {
+  const faixas = Array(10).fill(0);
+  for (const n of notas) faixas[Math.min(9, Math.floor(n))]++;
+  const maior = Math.max(1, ...faixas), media = notas.reduce((a, b) => a + b, 0) / notas.length;
+  $('#analise-notas').innerHTML = `<h3>Distribuição das notas</h3>
+    <p class="dica">${notas.length} aluno(s) · média ${nota1(media)}</p>
+    <div class="histograma" role="img" aria-label="Alunos por faixa de nota: ${faixas.map((f, i) => `${i} a ${i + 1}: ${f}`).join('; ')}">
+      ${faixas.map((f, i) => `<div><span style="height:${(f / maior) * 100}%"></span><b>${f || ''}</b><small>${i}–${i + 1}</small></div>`).join('')}
+    </div>`;
+  const cor = p => `hsl(${Math.round(p * 1.2)} 70% 88%)`;
+  $('#analise-questoes').innerHTML = `<h3>Questões</h3>
+    <p class="dica">% dos ${alunos} aluno(s) da versão A. A alternativa certa está em negrito.</p>
+    <div class="rolagem"><table class="analise">
+      <thead><tr><th>Q</th><th>Acerto</th>${L.map(a => `<th>${a}</th>`).join('')}<th>Branco</th><th>Dupla</th></tr></thead>
+      <tbody>${questoes.map((q, i) => `<tr><td>${i + 1}</td><td style="background:${cor(q.acerto)}">${q.acerto}%</td>
+        ${L.map(a => `<td${a === q.gabarito ? ' class="certa-analise"' : ''}>${q.alternativas[a]}%</td>`).join('')}
+        <td>${q.branco}%</td><td>${q.dupla}%</td></tr>`).join('')}</tbody>
+    </table></div>`;
 }
 $('#resultados').addEventListener('click', async e => {
   const k = e.target.dataset.apagar;

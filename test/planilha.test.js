@@ -62,8 +62,8 @@ test('nome do arquivo sem caracteres inválidos', () => {
 // ---------- ticket 06: Análise e Resumo ----------
 const objetos = (wb, aba) => XLSX.utils.sheet_to_json(wb.Sheets[aba], { defval: '' });
 
-test('abas Análise e Resumo depois das turmas', () => {
-  assert.deepEqual(montarPlanilha(XLSX, estadoExemplo()).SheetNames, ['2A', '2B', 'Análise', 'Resumo', 'Dados']);
+test('abas Análise, Resumo e Diário depois das turmas', () => {
+  assert.deepEqual(montarPlanilha(XLSX, estadoExemplo()).SheetNames, ['2A', '2B', 'Análise', 'Resumo', 'Diário', 'Dados']);
 });
 
 test('Análise: acerto geral e por turma, alternativas marcadas e dificuldade', () => {
@@ -143,7 +143,7 @@ test('com versões: a nota usa o gabarito da versão do aluno', () => {
 
 test('com versões: uma aba de Análise por versão e Resumo por versão', () => {
   const wb = montarPlanilha(XLSX, estadoVersoes());
-  assert.deepEqual(wb.SheetNames, ['2A', 'Análise A', 'Análise B', 'Resumo', 'Dados']);
+  assert.deepEqual(wb.SheetNames, ['2A', 'Análise A', 'Análise B', 'Resumo', 'Diário', 'Dados']);
   assert.equal(objetos(wb, 'Análise B')[0]['% acerto geral'], 50);
   const [t] = objetos(wb, 'Resumo');
   assert.equal(t['Alunos'], 3);
@@ -361,4 +361,31 @@ test('pontuação parcial em prova embaralhada: vale pela alternativa original',
   const e = registrar({ ...estadoInicial(), prova }, { turma: '1A', numero: '01', versao: 'B', respostas, editado: false });
   const linha = objetos(releitura(montarPlanilha(XLSX, e)), '1A').find(r => r['Nº'] === '01');
   assert.equal(linha.Acertos, 5); assert.equal(linha.Pontos, 5.5);
+});
+
+// ---------- plano: conceitos por faixa, aba Diário e posição ----------
+import { conceitoDe, lerConceitos, analiseDaProva } from '../src/planilha.js';
+test('conceitos: lê as faixas digitadas e dá o conceito pela nota', () => {
+  const faixas = lerConceitos('A 9\nB 7\nC 5\nD 0');
+  assert.deepEqual(faixas, [{ conceito: 'A', min: 9 }, { conceito: 'B', min: 7 }, { conceito: 'C', min: 5 }, { conceito: 'D', min: 0 }]);
+  assert.equal(conceitoDe(faixas, 9.5), 'A'); assert.equal(conceitoDe(faixas, 7), 'B'); assert.equal(conceitoDe(faixas, 2), 'D');
+  assert.deepEqual(lerConceitos('Insuficiente 0\nSuficiente 6'), [{ conceito: 'Suficiente', min: 6 }, { conceito: 'Insuficiente', min: 0 }]);
+  assert.equal(lerConceitos('A nove'), null);
+});
+test('planilha: conceito e aba Diário com a nota no valor da prova', () => {
+  const e = estadoExemplo({ valor: 20, conceitos: lerConceitos('A 18\nB 14\nC 10\nD 0') }); // faixas na nota do valor da prova
+  const wb = releitura(montarPlanilha(XLSX, e));
+  const t = objetos(wb, '2B');
+  assert.equal(t.find(r => r['Nº'] === '03').Conceito, 'C'); // 2 de 4 = 10 de 20
+  const d = objetos(wb, 'Diário');
+  assert.deepEqual(Object.keys(d[0]), ['Turma', 'Nº', 'Nome', 'Nota (valor 20)', 'Conceito']);
+  assert.deepEqual(d.map(r => [r.Turma, r['Nº'], r['Nota (valor 20)']]), [['2A', '01', 15], ['2A', '02', 15], ['2B', '03', 10], ['2B', '04', 5]]);
+});
+test('análise na tela: % de cada alternativa, % de acerto e notas da prova', () => {
+  const a = analiseDaProva(estadoExemplo());
+  assert.equal(a.questoes[0].gabarito, 'A');
+  assert.equal(a.questoes[0].acerto, 75);          // 3 de 4 marcaram A
+  assert.equal(a.questoes[0].alternativas.A, 75);
+  assert.equal(a.questoes[0].branco, 25);
+  assert.deepEqual(a.notas, [7.5, 7.5, 5, 2.5]);
 });

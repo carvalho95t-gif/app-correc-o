@@ -11,7 +11,7 @@ export function porTurma(estado) {
 }
 
 // Excel compara nomes de aba sem maiúsculas; as abas fixas vêm depois e ficam reservadas.
-const RESERVADAS = ['análise', 'análise a', 'análise b', 'análise c', 'análise d', 'resumo', 'dados'];
+const RESERVADAS = ['análise', 'análise a', 'análise b', 'análise c', 'análise d', 'resumo', 'diário', 'dados'];
 function nomeAba(t, usados) {
   const base = t.replace(/[\\/:*?[\]]/g, '-').slice(0, 31) || 'Turma';
   let nome = base;
@@ -22,6 +22,18 @@ function nomeAba(t, usados) {
 const numeroBR = n => n.toLocaleString('pt-BR');
 
 const LETRA = 'ABCD';
+
+// Conceitos por faixa de nota (no valor da prova): uma linha por conceito, "A 9", "B 7,5"...
+// Devolve as faixas da maior para a menor, [] sem texto, ou null se alguma linha não tem nota.
+export function lerConceitos(texto) {
+  const linhas = String(texto ?? '').split('\n').map(l => l.trim()).filter(Boolean);
+  const faixas = linhas.map(l => /^(.+?)\s+(\d+(?:[.,]\d+)?)$/.exec(l)).map(m => m && { conceito: m[1].trim(), min: Number(m[2].replace(',', '.')) });
+  return faixas.includes(null) ? null : faixas.sort((a, b) => b.min - a.min);
+}
+export const conceitoDe = (faixas, nota) => faixas.find(f => nota >= f.min - 1e-9)?.conceito ?? '';
+const notaNoValor = (prova, r) => Math.round((r.pontos / r.possiveis) * (prova.valor ?? 10) * 10) / 10;
+// Posição de cada nota na lista (notas iguais dividem a posição).
+export const posicoes = notas => notas.map(n => 1 + notas.filter(m => m > n).length);
 // Prova embaralhada: a nota é sempre pela questão original, para os pesos e as áreas seguirem a questão.
 export function notaDe(prova, c) {
   if (ehEmbaralhada(prova)) { const v = prova.versoes[0]; return corrigir(v.gabarito, v.anuladas, paraOriginal(prova, c), prova.pesos, prova.areas, v.parciais); }
@@ -43,16 +55,18 @@ const comGabarito = v => v.gabarito.map((g, i) => (v.anuladas.includes(i) ? 'ANU
 function abaTurma(estado, turma, correcoes) {
   const { prova } = estado, comValor = prova.valor !== 10, comNomes = !!estado.chamadas?.[turma], comVersoes = (estado.versoesImpressas ?? prova.versoes.length) > 1;
   const nome = c => (comNomes ? [nomeDo(estado, turma, c.numero)] : []);
+  const comConceitos = !!prova.conceitos?.length;
   const n = prova.versoes[0].gabarito.length, comParciais = prova.versoes.some(temParciais), comPesos = !!prova.pesos?.some(p => p !== 1);
   const cabecalho = ['Nº', ...(comNomes ? ['Nome'] : []), ...(comVersoes ? ['Versão'] : []), ...[...Array(n)].map((_, i) => `Q${i + 1}`),
-    'Acertos', ...(comPesos || comParciais ? ['Pontos'] : []), '%', 'Nota', ...(comValor ? [`Nota (valor ${numeroBR(prova.valor)})`] : []),
+    'Acertos', ...(comPesos || comParciais ? ['Pontos'] : []), '%', 'Nota', ...(comValor ? [`Nota (valor ${numeroBR(prova.valor)})`] : []), ...(comConceitos ? ['Conceito'] : []),
     ...(prova.areas ?? []).flatMap(a => [`${a.nome} acertos`, `${a.nome} %`])];
   const pesos = comPesos ? [['Peso', ...(comNomes ? [''] : []), ...(comVersoes ? [''] : []), ...prova.pesos]] : [];
   const gabaritos = prova.versoes.map((v, i) => ['Gabarito', ...(comNomes ? [''] : []), ...(comVersoes ? [estado.versoesImpressas ? '' : LETRA[i]] : []), ...comGabarito(v)]);
   const alunos = correcoes.map(c => {
     const r = notaDe(prova, c);
-    const extra = comValor ? [Math.round((r.pontos / r.possiveis) * prova.valor * 10) / 10] : [];
-    return [c.numero, ...nome(c), ...(comVersoes ? [c.versaoImpressa ?? c.versao ?? 'A'] : []), ...c.respostas, r.acertos, ...(comPesos || comParciais ? [r.pontos] : []), r.percentual, r.nota, ...extra, ...r.porArea.flatMap(a => [a.acertos, a.percentual])];
+    const extra = comValor ? [notaNoValor(prova, r)] : [];
+    return [c.numero, ...nome(c), ...(comVersoes ? [c.versaoImpressa ?? c.versao ?? 'A'] : []), ...c.respostas, r.acertos, ...(comPesos || comParciais ? [r.pontos] : []), r.percentual, r.nota, ...extra,
+      ...(comConceitos ? [conceitoDe(prova.conceitos, notaNoValor(prova, r))] : []), ...r.porArea.flatMap(a => [a.acertos, a.percentual])];
   });
   return [cabecalho, ...pesos, ...gabaritos, ...alunos];
 }
@@ -116,6 +130,30 @@ function resumo(prova, turmas) {
   return [...Object.entries(turmas).map(([t, cs]) => linha(t, cs)), linha('Geral', Object.values(turmas).flat())];
 }
 
+// Uma linha por aluno, pronta para copiar para o diário da escola.
+function diario(estado, turmas) {
+  const { prova } = estado, valor = prova.valor ?? 10;
+  return Object.entries(turmas).flatMap(([t, cs]) => cs.map(c => {
+    const nota = notaNoValor(prova, notaDe(prova, c));
+    return { Turma: t, Nº: c.numero, Nome: nomeDo(estado, t, c.numero) ?? '', [`Nota (valor ${numeroBR(valor)})`]: nota,
+      ...(prova.conceitos?.length ? { Conceito: conceitoDe(prova.conceitos, nota) } : {}) };
+  }));
+}
+
+// Análise para a tela Resultados: % de acerto e de cada alternativa por questão (versão A, ou a original
+// numa prova embaralhada) e as notas (0 a 10) de todos os alunos.
+// shortcut: provas com versões sem embaralhar mostram só a versão A na tela; a planilha tem todas.
+export function analiseDaProva(original) {
+  const estado = vistaOriginal(original), { prova } = estado, v = prova.versoes[0], turmas = porTurma(estado);
+  const todos = Object.values(turmas).flat(), daA = todos.filter(c => (c.versao ?? 'A') === 'A'), L = prova.alternativas ?? 'ABCDE';
+  const questoes = v.gabarito.map((g, i) => {
+    const conta = m => pct(daA.filter(c => c.respostas[i] === m).length, daA.length);
+    return { gabarito: v.anuladas.includes(i) ? 'ANULADA' : g, acerto: pct(daA.filter(c => acertou(v, c, i)).length, daA.length),
+      alternativas: Object.fromEntries([...L].map(a => [a, conta(a)])), branco: conta('branco'), dupla: conta('dupla') };
+  });
+  return { questoes, alunos: daA.length, notas: todos.map(c => notaDe(prova, c).nota) };
+}
+
 export function montarPlanilha(XLSX, original) {
   const estado = vistaOriginal(original);
   const wb = XLSX.utils.book_new(), turmas = porTurma(estado), { prova } = estado, usados = new Set(RESERVADAS);
@@ -129,6 +167,7 @@ export function montarPlanilha(XLSX, original) {
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(analise(v, daVersao, prova.alternativas)), prova.versoes.length > 1 ? `Análise ${LETRA[k]}` : 'Análise');
     });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumo(prova, turmas)), 'Resumo');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(diario(estado, turmas)), 'Diário');
   }
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dados(original)), 'Dados');
   wb.Workbook = { Sheets: wb.SheetNames.map(name => ({ name, Hidden: name === 'Dados' ? 1 : 0 })) };

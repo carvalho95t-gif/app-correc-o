@@ -742,3 +742,29 @@ test('conferência avisa marcação dupla ou rasura e questão em branco', async
   assert.ok(await page.isEnabled('#salvar-leitura')); // é só um aviso
   await ctx.close();
 });
+
+// ---------- plano: análise na tela, conceitos e posição ----------
+test('resultados: posição, conceito e análise das questões e das notas na tela', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await criarProva(page);
+  await page.fill('#prova-conceitos', 'A 9\nB 7\nC 0');
+  await page.click('#salvar-prova');
+  await fotografarECorrigir(page, '2A', '01', [...'ABCDEABCDE']); await page.click('#salvar-leitura');
+  await fotografarECorrigir(page, '2A', '02', [...'ABCDEABCEE']); await page.click('#salvar-leitura');
+  await page.click('#aba-resultados');
+  const linhas = await page.locator('#resultados tbody tr').allTextContents();
+  assert.match(linhas[0], /01.*10\/10.*10,0.*1º.*A/s);
+  assert.match(linhas[1], /02.*9\/10.*9,0.*2º.*A/s);
+  await page.click('#analise-tela summary');
+  assert.match(await page.textContent('#analise-notas'), /2 aluno\(s\) · média 9,5/);
+  const q9 = await page.locator('#analise-questoes tbody tr >> nth=8').textContent();
+  assert.match(q9, /^9\s*50%/); // metade acertou a Q9
+  assert.equal(await page.locator('#analise-questoes tbody tr >> nth=8 >> td.certa-analise').textContent(), '50%');
+  // faixa de conceito inválida não salva
+  await page.click('#aba-prova');
+  await page.fill('#prova-conceitos', 'A nove');
+  await page.click('#salvar-prova');
+  assert.match(await page.textContent('#prova-msg'), /Em Conceitos/);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
