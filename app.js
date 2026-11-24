@@ -112,7 +112,8 @@ $('#importar').addEventListener('change', async e => {
   const nome = restaurado.prova.nome, existente = acharPorNome(arquivo, nome);
   let base = novaProva(arquivo);
   if (existente) {
-    if (await perguntar(`Já existe uma prova "${nome}" no app. Substituir pela da planilha?`, 'Substituir', 'Manter as duas')) base = escolher(arquivo, existente);
+    const aviso = arquivo.provas[existente].pendente ? ' Ela tem correções que ainda não estão em nenhuma planilha e serão perdidas.' : '';
+    if (await perguntar(`Já existe uma prova "${nome}" no app.${aviso} Substituir pela da planilha?`, 'Substituir', 'Manter as duas')) base = escolher(arquivo, existente);
     else restaurado.prova = { ...restaurado.prova, nome: `${nome} (restaurada)` };
   }
   gravar(comAtivo(base, restaurado));

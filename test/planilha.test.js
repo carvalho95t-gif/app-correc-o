@@ -172,3 +172,18 @@ test('planilha que não é do app dá erro claro', () => {
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['oi']]), 'Plan1');
   assert.throws(() => lerPlanilha(XLSX, wb), /não foi baixada por este app/);
 });
+
+test('turmas com nomes que colidem ainda geram a planilha, cada uma na sua aba', () => {
+  let e = estadoExemplo();
+  for (const t of ['2/A', '2:A', 'Dados', 'resumo']) e = registrar(e, corr(t, '01', ['A', 'B', 'C', 'D']));
+  const wb = releitura(montarPlanilha(XLSX, e));
+  const minusc = wb.SheetNames.map(n => n.toLowerCase());
+  assert.equal(new Set(minusc).size, minusc.length);
+  assert.equal(linhas(wb, 'Dados')[0][0], 'app-correcao-v1');
+  assert.equal(lerPlanilha(XLSX, wb).prova.nome, 'Simulado 1');
+});
+
+test('lista de chamada aceita número colado ao separador', () => {
+  const l = linhas(montarPlanilha(XLSX, definirLista(estadoExemplo(), '2B', '3-Ana\n4.Bruno')), '2B');
+  assert.deepEqual(l.slice(2).map(r => r.slice(0, 2)), [['03', 'Ana'], ['04', 'Bruno']]);
+});

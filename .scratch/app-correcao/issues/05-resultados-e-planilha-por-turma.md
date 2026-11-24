@@ -4,7 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** done
+**Status:** resolved
 
 - [ ] Seam Planilha: aba por turma com cabeçalho, linha do gabarito (ANULADA), alunos em ordem, acertos, %, nota e "Nota (valor X)" quando valor ≠ 10
 - [ ] Mudar uma letra do gabarito recalcula; mudar o número de questões com correções é recusado

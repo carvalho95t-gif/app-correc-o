@@ -303,3 +303,21 @@ test('restaurar a prova importando a planilha baixada', async () => {
   await page.waitForFunction(() => /não foi baixada|Não consegui ler/.test(document.querySelector('#prova-msg').textContent));
   await ctx.close();
 });
+
+test('restaurar por cima de uma prova com correções não exportadas avisa a perda', async () => {
+  const { ctx, page } = await abrirApp();
+  await criarProva(page, { nome: 'Prova A' });
+  await fotografarECorrigir(page, '2A', '01', [...'ABCDEABCDE']);
+  await page.click('#salvar-leitura');
+  await page.click('#aba-resultados');
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#baixar')]);
+  const arquivo = await readFile(await download.path());
+  await fotografarECorrigir(page, '2A', '02', [...'ABCDEABCDE']);
+  await page.click('#salvar-leitura');
+
+  await page.click('#aba-prova');
+  await page.setInputFiles('#importar', { name: 'Prova A.xlsx', mimeType: 'application/octet-stream', buffer: arquivo });
+  await page.waitForSelector('#dlg[open]');
+  assert.match(await page.textContent('#dlg-msg'), /ainda não estão em nenhuma planilha e serão perdidas/);
+  await ctx.close();
+});

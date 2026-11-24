@@ -63,7 +63,7 @@ export const marcarExportado = estado => ({ ...estado, pendente: false });
 export function lerLista(texto) {
   const nomes = {};
   texto.split('\n').map(l => l.trim()).filter(Boolean).forEach((linha, i) => {
-    const m = linha.match(/^(\d{1,2})\s*[-.–)]?\s+(.+)$/);
+    const m = linha.match(/^(\d{1,2})\s*(?:[-.–)]\s*|\s+)(.+)$/);
     nomes[String(m ? +m[1] : i + 1).padStart(2, '0')] = m ? m[2].trim() : linha;
   });
   return nomes;

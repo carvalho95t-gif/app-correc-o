@@ -13,7 +13,7 @@ export function folhaSVG(layout, nomeProva) {
     `<text x="25" y="62" font-size="4.5">Turma:</text><line x1="42" y1="62" x2="80" y2="62" stroke="black" stroke-width="0.3"/>`,
     `<text x="25" y="80" font-size="3.5">Marque seu número de chamada ao lado.</text>`,
     `<text x="25" y="88" font-size="3.5">Pinte toda a bolinha com caneta preta ou azul.</text>`,
-    `<text x="25" y="96" font-size="3.5">Uma alternativa por questão. Rasura anula a questão.</text>`,
+    `<text x="25" y="96" font-size="3.5">Marque só uma alternativa por questão. Não rasure.</text>`,
     `<text x="153.5" y="34" font-size="3.5" text-anchor="middle">Nº</text>`,
     ...(layout.versao ? [`<text x="175" y="34" font-size="3.5" text-anchor="middle">Versão</text>`,
       ...layout.versao.map((p, v) => bolinha(p, 'ABCD'[v], `data-ver="${'ABCD'[v]}"`))] : []),

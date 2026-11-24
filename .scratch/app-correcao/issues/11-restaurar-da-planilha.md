@@ -4,7 +4,7 @@
 
 **Blocked by:** 06, 08, 10
 
-**Status:** done
+**Status:** resolved
 
 - [ ] Seam Planilha: exportar e importar devolve a mesma prova, correções, nomes, valor e versões
 - [ ] Prova com o mesmo nome já existe: escolher substituir ou manter as duas

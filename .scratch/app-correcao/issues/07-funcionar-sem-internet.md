@@ -4,6 +4,6 @@
 
 **Blocked by:** 01
 
-**Status:** done
+**Status:** resolved
 
 - [ ] Teste no app: abrir, ficar offline, recarregar, a prova continua lá e a folha aparece

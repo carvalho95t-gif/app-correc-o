@@ -9,7 +9,15 @@ export function porTurma(estado) {
   return Object.fromEntries(Object.entries(grupos).sort(([a], [b]) => a.localeCompare(b)));
 }
 
-const nomeAba = t => t.replace(/[\\/:*?[\]]/g, '-').slice(0, 31) || 'Turma';
+// Excel compara nomes de aba sem maiúsculas; as abas fixas vêm depois e ficam reservadas.
+const RESERVADAS = ['análise', 'análise a', 'análise b', 'análise c', 'análise d', 'resumo', 'dados'];
+function nomeAba(t, usados) {
+  const base = t.replace(/[\\/:*?[\]]/g, '-').slice(0, 31) || 'Turma';
+  let nome = base;
+  for (let k = 2; usados.has(nome.toLowerCase()); k++) nome = `${base.slice(0, 26)} (${k})`;
+  usados.add(nome.toLowerCase());
+  return nome;
+}
 const numeroBR = n => n.toLocaleString('pt-BR');
 
 const LETRA = 'ABCD';
@@ -89,9 +97,9 @@ function resumo(prova, turmas) {
 }
 
 export function montarPlanilha(XLSX, estado) {
-  const wb = XLSX.utils.book_new(), turmas = porTurma(estado), { prova } = estado;
+  const wb = XLSX.utils.book_new(), turmas = porTurma(estado), { prova } = estado, usados = new Set(RESERVADAS);
   for (const [turma, cs] of Object.entries(turmas))
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(abaTurma(estado, turma, cs)), nomeAba(turma));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(abaTurma(estado, turma, cs)), nomeAba(turma, usados));
   if (Object.keys(turmas).length) {
     prova.versoes.forEach((v, k) => {
       const daVersao = Object.fromEntries(Object.entries(turmas)

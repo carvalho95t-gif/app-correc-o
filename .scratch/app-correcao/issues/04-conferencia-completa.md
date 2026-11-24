@@ -4,7 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** done
+**Status:** resolved
 
 - [ ] Salvar fica bloqueado com duvidosa sem resolver ou sem número de chamada
 - [ ] Mesmo turma + número já salvo pergunta "Trocar pela nova" / "Manter a anterior"

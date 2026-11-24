@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** done
+**Status:** resolved
 
 - [ ] Seam Leitura: imagem sintética reta → número e marcações corretos, em branco e dupla marcação
 - [ ] Foto sem folha mostra "Não encontrei os 4 quadrados pretos…"
