@@ -6,6 +6,7 @@ import { carregar, salvar, definirProva, arquivoInicial, ativo, comAtivo, escolh
 import { montarPlanilha, nomeArquivo, porTurma, notaDe, lerPlanilha } from './src/planilha.js';
 import { paraCinza, lerFolha, homografia, aplicar } from './src/leitor.js';
 import { corrigir } from './src/nota.js';
+import { codificar } from './src/codigo.js';
 
 const $ = s => document.querySelector(s);
 const letras = p => [...(p.alternativas ?? 'ABCDE')];
@@ -216,11 +217,20 @@ $('#salvar-prova').addEventListener('click', () => {
   const problema = validarAreas(areas, numQuestoes(rascunho));
   if (problema) { msg.textContent = problema; return; }
   try {
-    persistir(definirProva(estado, { ...(areas.length ? { areas } : {}), nome: rascunho.nome.trim(), valor, ...((rascunho.alternativas ?? 'ABCDE') !== 'ABCDE' ? { alternativas: rascunho.alternativas } : {}), ...(rascunho.pesos?.some(p => p !== 1) ? { pesos: [...rascunho.pesos] } : {}),
+    persistir(definirProva(estado, { codigo: estado.prova?.codigo ?? novoCodigo(), ...(areas.length ? { areas } : {}), nome: rascunho.nome.trim(), valor, ...((rascunho.alternativas ?? 'ABCDE') !== 'ABCDE' ? { alternativas: rascunho.alternativas } : {}), ...(rascunho.pesos?.some(p => p !== 1) ? { pesos: [...rascunho.pesos] } : {}),
       versoes: rascunho.versoes.map(v => ({ gabarito: v.gabarito.map(g => g || letras(rascunho)[0]), anuladas: [...v.anuladas] })) }));
     msg.textContent = 'Prova salva. Agora imprima a folha na aba Folha.';
   } catch (err) { msg.textContent = err.message; }
 });
+
+// Código da prova impresso na folha: único entre as provas deste aparelho.
+function novoCodigo() {
+  const usados = new Set(Object.values(arquivo.provas).map(e => e.prova?.codigo));
+  let c;
+  do c = 1 + Math.floor(Math.random() * 4095); while (usados.has(c));
+  return c;
+}
+const idDoCodigo = codigo => Object.keys(arquivo.provas).find(id => arquivo.provas[id].prova?.codigo === codigo);
 
 // ---------- folha ----------
 function renderFolha() {
@@ -229,7 +239,8 @@ function renderFolha() {
   if (!p) return;
   const cabeDuas = numQuestoes(p) <= 30, duas = cabeDuas && $('#duas-por-pagina').checked;
   $('#opcao-duas').hidden = !cabeDuas;
-  const svg = folhaSVG(layoutDa(p), p.nome);
+  if (!p.codigo) persistir({ ...estado, prova: { ...p, codigo: novoCodigo() } }); // provas salvas antes do código
+  const svg = folhaSVG(layoutDa(estado.prova), p.nome, codificar(estado.prova.codigo, null));
   $('#folha').innerHTML = duas ? svg + svg : svg;
   $('#folha').classList.toggle('duas', duas);
   $('#pagina').textContent = `@page { size: A4 ${duas ? 'landscape' : 'portrait'}; margin: 0; }`;
@@ -246,23 +257,34 @@ function renderCorrigir() {
 $('#turma').addEventListener('input', e => { try { localStorage.setItem('correcao-turma', e.target.value); } catch { /* ok */ } });
 
 $('#foto').addEventListener('change', async e => {
-  const arquivo = e.target.files[0];
+  const imagem = e.target.files[0];
   e.target.value = '';
-  if (!arquivo) return;
+  if (!imagem) return;
   $('#erro-leitura').hidden = true; $('#corrigir-msg').textContent = '';
   if (!$('#turma').value.trim()) { mostrarErro('Digite a turma antes de fotografar.'); return; }
   $('#lendo').hidden = false;
   try {
-    const img = await createImageBitmap(arquivo);
+    const img = await createImageBitmap(imagem);
     const escala = Math.min(1, 2000 / Math.max(img.width, img.height)); // fotos de 12 MP ficam leves
     const cv = $('#canvas');
     cv.width = Math.round(img.width * escala); cv.height = Math.round(img.height * escala);
     const ctx = cv.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(img, 0, 0, cv.width, cv.height);
     const foto = ctx.getImageData(0, 0, cv.width, cv.height);
-    const layout = layoutDa(estado.prova);
-    const l = lerFolha(paraCinza(foto), layout);
+    const cinza = paraCinza(foto);
+    let layout = layoutDa(estado.prova), l = lerFolha(cinza, layout);
     if (!l) { mostrarErro('Não encontrei os 4 quadrados pretos da folha. Enquadre a folha inteira, com boa luz, e fotografe de novo.'); return; }
+    // O código fica no mesmo lugar em todas as folhas: lido com qualquer layout, decide a prova.
+    const daFolha = l.codigo && idDoCodigo(l.codigo.prova);
+    let aviso = l.codigo && !daFolha ? 'Esta folha é de uma prova que não está neste aparelho. Confira se está corrigindo a prova certa.' : '';
+    if (daFolha && daFolha !== arquivo.ativa) {
+      const nome = arquivo.provas[daFolha].prova.nome;
+      if (await perguntar(`Esta folha é da prova "${nome}". Corrigir nela?`, `Corrigir em "${nome}"`, `Manter "${estado.prova.nome}"`)) {
+        gravar(escolher(arquivo, daFolha)); rascunho = structuredClone(estado.prova); renderCorrigir();
+        layout = layoutDa(estado.prova); l = lerFolha(cinza, layout);
+      } else aviso = `Esta folha é da prova "${nome}", mas você escolheu corrigir em "${estado.prova.nome}".`;
+    }
+    $('#aviso-codigo').textContent = aviso; $('#aviso-codigo').hidden = !aviso;
     leitura = {
       layout, foto, H: homografia(layout.marcadores, l.marcadoresPx),
       original: l.respostas.map(r => r.marca),
@@ -272,7 +294,7 @@ $('#foto').addEventListener('change', async e => {
     $('#versao-campo').hidden = estado.prova.versoes.length < 2;
     $('#versao').innerHTML = '<option value="">Confira</option>' +
       estado.prova.versoes.map((_, k) => `<option value="${'ABCD'[k]}">Versão ${'ABCD'[k]}</option>`).join('');
-    $('#versao').value = l.versao && !l.versaoDuvidosa ? l.versao : '';
+    $('#versao').value = l.codigo?.versao ?? (l.versao && !l.versaoDuvidosa ? l.versao : '');
     renderConferencia();
     $('#conferencia').hidden = false;
     $('#conferencia').scrollIntoView();

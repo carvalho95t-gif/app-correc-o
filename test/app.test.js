@@ -372,3 +372,40 @@ test('áreas: recusa sobreposição e salva duas áreas', async () => {
   assert.equal(await page.inputValue('#areas [data-area="1"] [name="nome"]'), 'Matemática');
   await ctx.close();
 });
+
+// ---------- novas funções 04: código da prova ----------
+async function enviarFoto(page, turma, png) {
+  await page.click('#aba-corrigir');
+  await page.fill('#turma', turma);
+  await page.setInputFiles('#foto', { name: 'folha.png', mimeType: 'image/png', buffer: png });
+}
+
+test('folha de outra prova: pergunta e corrige na prova certa', async () => {
+  const { ctx, page } = await abrirApp();
+  await criarProva(page, { nome: 'Prova A' });
+  const png = await fotografarFolha(page, '03', [...'ABCDEABCDE']);
+  await page.click('#aba-prova');
+  await page.click('#nova-prova');
+  await criarProva(page, { nome: 'Prova B', gabarito: 'EEEEEEEEEE' });
+  await enviarFoto(page, '2A', png);
+  await page.waitForSelector('#dlg[open]');
+  assert.match(await page.textContent('#dlg-msg'), /Esta folha é da prova "Prova A"\. Corrigir nela\?/);
+  await page.click('#dlg-sim');
+  await page.waitForSelector('#conferencia:not([hidden])');
+  assert.match(await page.textContent('#placar'), /10 de 10/);
+  assert.match(await page.textContent('#corrigindo'), /Prova A/);
+  await ctx.close();
+});
+
+test('folha de uma prova que não está no aparelho mostra aviso', async () => {
+  const a = await abrirApp();
+  await criarProva(a.page, { nome: 'Prova A' });
+  const png = await fotografarFolha(a.page, '03', [...'ABCDEABCDE']);
+  await a.ctx.close();
+  const { ctx, page } = await abrirApp();
+  await criarProva(page, { nome: 'Prova B' });
+  await enviarFoto(page, '2A', png);
+  await page.waitForSelector('#conferencia:not([hidden])');
+  assert.match(await page.textContent('#aviso-codigo'), /não está neste aparelho/);
+  await ctx.close();
+});

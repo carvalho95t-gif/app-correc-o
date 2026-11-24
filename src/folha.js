@@ -1,13 +1,16 @@
 // Folha de respostas em SVG (unidades em mm), pronta para imprimir.
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-export function folhaSVG(layout, nomeProva) {
+// codigo: os 20 bits do código da prova (src/codigo.js); sem ele a folha sai sem a faixa.
+export function folhaSVG(layout, nomeProva, codigo) {
   const { w, h } = layout.pagina, lado = layout.marcadorLado, r = layout.raio;
   const bolinha = (p, rotulo, attr) =>
     `<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="white" stroke="black" stroke-width="0.25" ${attr}/>` +
     `<text x="${p.x}" y="${p.y + 0.85}" font-size="2.4" text-anchor="middle" fill="#999">${rotulo}</text>`;
   const partes = [
     ...layout.marcadores.map(m => `<rect class="marcador" x="${m.x - lado / 2}" y="${m.y - lado / 2}" width="${lado}" height="${lado}" fill="black"/>`),
+    ...(codigo ? layout.codigo.map((c, i) => (codigo[i]
+      ? `<rect class="codigo" x="${c.x - layout.codigoCelula.w / 2}" y="${c.y - layout.codigoCelula.h / 2}" width="${layout.codigoCelula.w}" height="${layout.codigoCelula.h}" fill="black"/>` : '')) : []),
     `<text x="25" y="30" font-size="6" font-weight="bold">${esc(nomeProva)}</text>`,
     `<text x="25" y="48" font-size="4.5">Nome:</text><line x1="40" y1="48" x2="135" y2="48" stroke="black" stroke-width="0.3"/>`,
     `<text x="25" y="62" font-size="4.5">Turma:</text><line x1="42" y1="62" x2="80" y2="62" stroke="black" stroke-width="0.3"/>`,

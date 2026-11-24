@@ -17,6 +17,9 @@ export function montarLayout(numQuestoes, numVersoes = 1, alternativas = 'ABCDE'
     raio: 2.2,
     numero: [digitos(150), digitos(157)],
     alternativas,
+    // Faixa do código da prova entre os dois marcadores de cima; células separadas para não virarem um marcador.
+    codigo: [...Array(20)].map((_, i) => ({ x: 33 + 7.5 * i, y: 15 })),
+    codigoCelula: { w: 5, h: 4 },
     questoes,
     ...(numVersoes > 1 ? { versao: [...Array(numVersoes)].map((_, v) => ({ x: 175, y: 40 + 6 * v })) } : {}),
   };

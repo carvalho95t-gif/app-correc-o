@@ -24,7 +24,7 @@ export function cantosPx(layout, opcoes = {}) {
   return layout.marcadores.map(m => aplicar(H, m.x, m.y));
 }
 
-// marcas.versao: 'A'..'D' | null | ['A','B'].
+// marcas.versao: 'A'..'D' | null | ['A','B']. marcas.codigo: bits da faixa do código (ausente = folha antiga).
 // marcas.respostas[i]: 'A'..'E' | null (branco) | ['A','B'] (dupla) | {letra, fracao?, tom?} (parcial ou clara)
 export function gerarFoto(layout, marcas, opcoes = {}) {
   const o = { ...PADRAO, ...opcoes };
@@ -62,6 +62,8 @@ export function gerarFoto(layout, marcas, opcoes = {}) {
     else {
       v = o.papel;
       if (layout.marcadores.some(m => Math.abs(x - m.x) <= meio && Math.abs(y - m.y) <= meio)) v = o.tinta;
+      const cel = layout.codigoCelula;
+      if (marcas.codigo && layout.codigo.some((c, i) => marcas.codigo[i] && Math.abs(x - c.x) <= cel.w / 2 && Math.abs(y - c.y) <= cel.h / 2)) v = o.tinta;
       for (const b of grade.get(k(x, y)) ?? []) {
         const d = Math.hypot(x - b.x, y - b.y);
         if (d > r + 0.2) continue;

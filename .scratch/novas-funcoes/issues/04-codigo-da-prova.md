@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Seam Leitura: código lido com rotação, perspectiva, ruído e cópia; código danificado vira "sem código"; folha antiga sem faixa
 - [ ] Seam App: foto da folha de outra prova pergunta "Esta folha é da prova X. Corrigir nela?" e corrige na certa

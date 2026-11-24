@@ -1,4 +1,5 @@
 // Leitura da folha de respostas a partir de uma imagem em tons de cinza {width, height, data}.
+import { decodificar } from './codigo.js';
 export const MARCADO = 0.45;
 export const VAZIO = 0.20;
 
@@ -74,7 +75,13 @@ export function lerComMarcadores(cinza, layout, marcadoresPx) {
   });
   const digitos = layout.numero.map(col => avaliar(col.map(preenchimento)));
   const versao = layout.versao ? avaliar(layout.versao.map(preenchimento)) : { indice: 0, duvidosa: false };
+  const celula = c => { // média do escurecimento numa grade 3×3 dentro da célula
+    let soma = 0;
+    for (const fx of [-0.25, 0, 0.25]) for (const fy of [-0.25, 0, 0.25]) soma += escuro(pixel(c.x + fx * layout.codigoCelula.w, c.y + fy * layout.codigoCelula.h));
+    return soma / 9;
+  };
   return {
+    codigo: decodificar(layout.codigo.map(c => celula(c) > 0.5)),
     versao: versao.indice >= 0 ? 'ABCD'[versao.indice] : null,
     versaoDuvidosa: versao.duvidosa,
     numero: digitos.every(d => d.indice >= 0) ? digitos.map(d => d.indice).join('') : null,

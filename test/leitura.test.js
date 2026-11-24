@@ -102,3 +102,27 @@ for (const [alts, resp, esp] of [
   const l = lerFolha(gerarFoto(l5, { numero: '09', respostas: resp }, { rotacaoGraus: 4 }), l5);
   assert.deepEqual(l.respostas.map(r => r.marca), esp);
 });
+
+// ---------- novas funções 04: código da prova ----------
+import { codificar } from '../src/codigo.js';
+const lc = montarLayout(20);
+const comCodigo = (codigo, opcoes) => lerFolha(gerarFoto(lc, { numero: '05', respostas, codigo }, opcoes), lc);
+
+for (const [nome, opcoes] of [
+  ['reta', {}], ['girada 6°', { rotacaoGraus: 6, largura: 950, altura: 1300 }], ['em perspectiva', { perspectiva: 0.15 }],
+  ['com ruído e luz desigual', { ruido: 20, gradiente: 60 }], ['em fotocópia clara', { papel: 200, tinta: 70 }],
+  ['em meio tamanho', { pxPorMm: 4 * 0.707 * 0.9, largura: 700, altura: 900, fundo: 90 }],
+]) test(`código da prova lido na folha ${nome}`, () => {
+  const l = comCodigo(codificar(2741, 'C'), opcoes);
+  assert.deepEqual(l.codigo, { prova: 2741, versao: 'C' });
+  assert.deepEqual(l.respostas.map(r => r.marca), esperado);
+});
+
+test('código sem versão', () => assert.deepEqual(comCodigo(codificar(7, null)).codigo, { prova: 7, versao: null }));
+
+test('código danificado ou folha antiga sem faixa ficam sem código', () => {
+  const bits = codificar(2741, 'C'); bits[3] = !bits[3];
+  assert.equal(comCodigo(bits).codigo, null);
+  assert.equal(comCodigo(undefined).codigo, null);
+  assert.equal(comCodigo(Array(20).fill(true)).codigo, null);
+});
