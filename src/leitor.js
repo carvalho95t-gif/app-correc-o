@@ -159,6 +159,14 @@ export function acharMarcadores(cinza) {
   return cantos.map(p => ({ x: p.x * f, y: p.y * f }));
 }
 
+// Câmera ao vivo: o quadro está pronto quando os marcadores aparecem nos últimos 3 quadros
+// e nenhum se moveu mais que 2% da largura da imagem.
+export function quadroPronto(historico, largura, n = 3) {
+  const ultimos = historico.slice(-n);
+  if (ultimos.length < n || ultimos.some(m => !m)) return false;
+  return ultimos.slice(1).every((m, k) => m.every((p, i) => Math.hypot(p.x - ultimos[k][i].x, p.y - ultimos[k][i].y) < 0.02 * largura));
+}
+
 export function lerFolha(cinza, layout) {
   const m = acharMarcadores(cinza);
   return m && lerComMarcadores(cinza, layout, m);

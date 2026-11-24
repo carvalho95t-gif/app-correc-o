@@ -2,7 +2,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { abrirApp, criarProva, XLSX } from './apoio-app.js';
+import { join } from 'node:path';
+import { abrirApp, abrirAppComCamera, criarProva, XLSX } from './apoio-app.js';
 
 test('professor cria a prova e vê a folha para imprimir', async () => {
   const { ctx, page, erros } = await abrirApp();
@@ -408,4 +409,39 @@ test('folha de uma prova que não está no aparelho mostra aviso', async () => {
   await page.waitForSelector('#conferencia:not([hidden])');
   assert.match(await page.textContent('#aviso-codigo'), /não está neste aparelho/);
   await ctx.close();
+});
+
+// ---------- novas funções 05: câmera ao vivo ----------
+import { execFileSync } from 'node:child_process';
+import { writeFile, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+
+test('câmera ao vivo: captura sozinha, abre a conferência e volta para a câmera depois de salvar', async () => {
+  const a = await abrirApp();
+  await criarProva(a.page);
+  const png = await fotografarFolha(a.page, '12', [...'ABCDEABCDA']);
+  await a.ctx.close();
+  const dir = await mkdtemp(join(tmpdir(), 'camera-'));
+  await writeFile(join(dir, 'folha.png'), png);
+  // Folha sobre fundo cinza, como numa mesa, em vídeo de 2 s.
+  execFileSync('ffmpeg', ['-loglevel', 'error', '-loop', '1', '-i', join(dir, 'folha.png'), '-t', '2', '-r', '10',
+    '-vf', 'scale=600:-2,pad=720:1080:(ow-iw)/2:(oh-ih)/2:gray', '-pix_fmt', 'yuv420p', join(dir, 'folha.y4m')]);
+
+  const { page, erros, fechar } = await abrirAppComCamera(join(dir, 'folha.y4m'));
+  try {
+    await criarProva(page);
+    await page.click('#aba-corrigir');
+    await page.fill('#turma', '2A');
+    await page.click('#abrir-camera');
+    await page.waitForSelector('#conferencia:not([hidden])');
+    assert.match(await page.textContent('#placar'), /9 de 10/);
+    assert.equal(await page.inputValue('#numero'), '12');
+    assert.ok(await page.isHidden('#camera'));
+    await page.click('#salvar-leitura');
+    await page.waitForSelector('#camera:not([hidden])');
+    await page.click('#aba-resultados');
+    assert.ok(await page.isHidden('#camera'));
+    assert.equal(await page.evaluate(() => document.querySelector('#video').srcObject), null);
+    assert.deepEqual(erros, []);
+  } finally { await fechar(); }
 });

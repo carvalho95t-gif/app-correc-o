@@ -80,9 +80,15 @@
         <p id="corrigindo" class="destaque"></p>
         <label for="turma">Turma</label>
         <input id="turma" autocomplete="off" placeholder="Ex.: 2A">
-        <label for="foto" class="botao primario">Fotografar folha</label>
+        <button id="abrir-camera" class="primario">Corrigir com a câmera</button>
+        <label for="foto" class="botao">Fotografar folha</label>
         <input id="foto" type="file" accept="image/*" capture="environment" class="oculto">
         <p class="dica">Enquadre a folha inteira, com os 4 quadrados pretos visíveis, sobre uma mesa e com boa luz.</p>
+        <div id="camera" hidden>
+          <video id="video" playsinline muted aria-label="Imagem da câmera"></video>
+          <p id="camera-status" role="status"></p>
+          <div class="acoes"><button id="fechar-camera">Fechar a câmera</button></div>
+        </div>
         <p id="lendo" role="status" hidden>Lendo a folha…</p>
         <p id="erro-leitura" role="alert" hidden></p>
         <p id="corrigir-msg" role="status"></p>

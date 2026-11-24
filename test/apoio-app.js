@@ -49,3 +49,15 @@ export async function criarProva(page, { nome = 'Teste', gabarito = 'ABCDEABCDE'
   }
   await page.click('#salvar-prova');
 }
+
+// Chromium com câmera falsa que mostra o vídeo `video` (.y4m) em loop.
+export async function abrirAppComCamera(video) {
+  const b = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-video-capture=${video}`] });
+  const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, permissions: ['camera'] });
+  ctx.setDefaultTimeout(8000);
+  const page = await ctx.newPage();
+  const erros = [];
+  page.on('pageerror', e => erros.push(e));
+  await page.goto(url);
+  return { ctx, page, erros, fechar: () => b.close() };
+}

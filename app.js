@@ -4,7 +4,7 @@ import { folhaSVG } from './src/folha.js';
 import { carregar, salvar, definirProva, arquivoInicial, ativo, comAtivo, escolher, novaProva, apagarProva, listar,
   acharPorNome, validarAreas, registrar, chave, remover, marcarExportado, definirLista, nomeDo, versaoDe } from './src/estado.js';
 import { montarPlanilha, nomeArquivo, porTurma, notaDe, lerPlanilha } from './src/planilha.js';
-import { paraCinza, lerFolha, homografia, aplicar } from './src/leitor.js';
+import { paraCinza, lerFolha, homografia, aplicar, acharMarcadores, quadroPronto } from './src/leitor.js';
 import { corrigir } from './src/nota.js';
 import { codificar } from './src/codigo.js';
 
@@ -49,6 +49,7 @@ function perguntar(msg, sim, nao) {
 const telas = ['prova', 'folha', 'corrigir', 'resultados'];
 const render = { prova: renderProva, folha: renderFolha, corrigir: renderCorrigir, resultados: renderResultados };
 function mostrar(tela) {
+  if (tela !== 'corrigir') { modoCamera = false; fecharCamera(); }
   for (const t of telas) {
     $(`#tela-${t}`).hidden = t !== tela;
     if (t === tela) $(`#aba-${t}`).setAttribute('aria-current', 'page'); else $(`#aba-${t}`).removeAttribute('aria-current');
@@ -262,12 +263,18 @@ $('#foto').addEventListener('change', async e => {
   if (!imagem) return;
   $('#erro-leitura').hidden = true; $('#corrigir-msg').textContent = '';
   if (!$('#turma').value.trim()) { mostrarErro('Digite a turma antes de fotografar.'); return; }
+  let img;
+  try { img = await createImageBitmap(imagem); } catch { mostrarErro('Não consegui abrir essa foto. Tente fotografar de novo.'); return; }
+  await lerImagem(img, img.width, img.height);
+});
+
+// Lê uma foto ou um quadro da câmera (qualquer coisa que o canvas desenhe) e abre a conferência.
+async function lerImagem(img, largura, altura) {
   $('#lendo').hidden = false;
   try {
-    const img = await createImageBitmap(imagem);
-    const escala = Math.min(1, 2000 / Math.max(img.width, img.height)); // fotos de 12 MP ficam leves
+    const escala = Math.min(1, 2000 / Math.max(largura, altura)); // fotos de 12 MP ficam leves
     const cv = $('#canvas');
-    cv.width = Math.round(img.width * escala); cv.height = Math.round(img.height * escala);
+    cv.width = Math.round(largura * escala); cv.height = Math.round(altura * escala);
     const ctx = cv.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(img, 0, 0, cv.width, cv.height);
     const foto = ctx.getImageData(0, 0, cv.width, cv.height);
@@ -301,7 +308,61 @@ $('#foto').addEventListener('change', async e => {
   } catch {
     mostrarErro('Não consegui abrir essa foto. Tente fotografar de novo.');
   } finally { $('#lendo').hidden = true; }
-});
+}
+
+// ---------- câmera ao vivo ----------
+let camera = null; // { stream, timer, historico } enquanto a câmera está aberta
+let modoCamera = false; // depois de salvar, volta para a câmera
+async function abrirCamera() {
+  $('#erro-leitura').hidden = true; $('#corrigir-msg').textContent = '';
+  if (!$('#turma').value.trim()) { mostrarErro('Digite a turma antes de abrir a câmera.'); return; }
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+  } catch {
+    mostrarErro('Não consegui abrir a câmera. Permita o uso da câmera no navegador, ou use "Fotografar folha".'); return;
+  }
+  modoCamera = true;
+  const video = $('#video');
+  video.srcObject = stream; await video.play().catch(() => {});
+  $('#camera').hidden = false; $('#conferencia').hidden = true;
+  $('#camera-status').textContent = 'Procurando os 4 quadrados pretos…';
+  const pequeno = document.createElement('canvas'), cx = pequeno.getContext('2d', { willReadFrequently: true });
+  camera = { stream, historico: [] };
+  camera.timer = setInterval(() => {
+    if (!video.videoWidth) return;
+    const f = Math.min(1, 480 / Math.max(video.videoWidth, video.videoHeight));
+    pequeno.width = Math.round(video.videoWidth * f); pequeno.height = Math.round(video.videoHeight * f);
+    cx.drawImage(video, 0, 0, pequeno.width, pequeno.height);
+    const m = acharMarcadores(paraCinza(cx.getImageData(0, 0, pequeno.width, pequeno.height)));
+    camera.historico = [...camera.historico.slice(-2), m];
+    $('#camera-status').textContent = m ? 'Achei a folha. Segure parado…' : 'Procurando os 4 quadrados pretos…';
+    if (quadroPronto(camera.historico, pequeno.width)) capturar(video);
+  }, 250);
+}
+function fecharCamera() {
+  if (!camera) return;
+  clearInterval(camera.timer);
+  camera.stream.getTracks().forEach(t => t.stop());
+  $('#video').srcObject = null; $('#camera').hidden = true;
+  camera = null;
+}
+function avisarCaptura() {
+  try { navigator.vibrate?.(150); } catch { /* sem vibração */ }
+  try {
+    const a = new AudioContext(), o = a.createOscillator();
+    o.frequency.value = 880; o.connect(a.destination); o.start(); o.stop(a.currentTime + 0.15);
+  } catch { /* sem som */ }
+}
+async function capturar(video) {
+  const w = video.videoWidth, h = video.videoHeight;
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  cv.getContext('2d').drawImage(video, 0, 0, w, h);
+  fecharCamera(); avisarCaptura();
+  await lerImagem(cv, w, h);
+}
+$('#abrir-camera').addEventListener('click', abrirCamera);
+$('#fechar-camera').addEventListener('click', () => { modoCamera = false; fecharCamera(); });
 
 function mostrarErro(msg) {
   $('#erro-leitura').textContent = msg; $('#erro-leitura').hidden = false;
@@ -374,7 +435,8 @@ $('#salvar-leitura').addEventListener('click', async () => {
       !(await perguntar(`O nº ${numero} da turma ${turma} já foi corrigido. Trocar pela correção nova?`, 'Trocar pela nova', 'Manter a anterior'))) return;
   persistir(registrar(estado, { turma, numero, versao: $('#versao').value, respostas: [...leitura.valores], editado: leitura.valores.some((v, i) => v !== leitura.original[i]) }));
   $('#conferencia').hidden = true; leitura = null;
-  $('#corrigir-msg').textContent = `Correção do nº ${numero} (${turma}) salva. Fotografe a próxima folha.`;
+  $('#corrigir-msg').textContent = `Correção do nº ${numero} (${turma}) salva. ${modoCamera ? 'Aponte para a próxima folha.' : 'Fotografe a próxima folha.'}`;
+  if (modoCamera) abrirCamera();
 });
 
 // ---------- resultados ----------

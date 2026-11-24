@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { montarLayout } from '../src/layout.js';
-import { lerFolha } from '../src/leitor.js';
+import { lerFolha, quadroPronto, acharMarcadores } from '../src/leitor.js';
 import { gerarFoto } from './sintetico.js';
 
 const layout = montarLayout(20);
@@ -125,4 +125,21 @@ test('código danificado ou folha antiga sem faixa ficam sem código', () => {
   assert.equal(comCodigo(bits).codigo, null);
   assert.equal(comCodigo(undefined).codigo, null);
   assert.equal(comCodigo(Array(20).fill(true)).codigo, null);
+});
+
+// ---------- novas funções 05: câmera ao vivo ----------
+const quadro = opcoes => acharMarcadores(gerarFoto(lc, { numero: '05', respostas }, { pxPorMm: 2, largura: 480, altura: 640, fundo: 90, ...opcoes }));
+
+test('quadro pronto: folha parada em 3 quadros seguidos', () => {
+  const parada = [quadro({ rotacaoGraus: 2 }), quadro({ rotacaoGraus: 2, semente: 2 }), quadro({ rotacaoGraus: 2, semente: 3 })];
+  assert.ok(parada.every(Boolean));
+  assert.equal(quadroPronto(parada.slice(0, 2), 480), false);
+  assert.equal(quadroPronto(parada, 480), true);
+});
+
+test('quadro pronto: folha mexendo ou marcadores perdidos não capturam', () => {
+  const mexendo = [quadro({ rotacaoGraus: 0 }), quadro({ rotacaoGraus: 4 }), quadro({ rotacaoGraus: 8 })];
+  assert.equal(quadroPronto(mexendo, 480), false);
+  const parada = quadro({ rotacaoGraus: 2 });
+  assert.equal(quadroPronto([parada, null, parada], 480), false);
 });

@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Seam Leitura: decisão "quadro pronto" com sequências sintéticas (parada, mexendo, marcadores perdidos)
 - [ ] Seam App: câmera falsa do Chromium com vídeo de uma folha sintética chega na conferência, e volta à câmera após salvar
