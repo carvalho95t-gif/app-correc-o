@@ -598,8 +598,12 @@ function atualizarConferencia() {
   $('#placar').textContent = `${c.acertos} de ${c.total} acertos · nota ${nota1(c.nota)}`;
   const faltam = v.flatMap((x, i) => (x === '' ? [i + 1] : []));
   const numeroOk = /^\d{1,2}$/.test($('#numero').value.trim()), versaoOk = $('#versao').value !== '';
+  const com = m => v.flatMap((x, i) => (x === m ? [i + 1] : []));
+  const duplas = com('dupla'), brancos = com('branco');
   $('#pendencias').textContent = [
     versaoOk ? '' : 'Escolha a versão da prova: ela não está clara na folha.',
+    duplas.length ? `Marcação dupla ou rasura na questão ${duplas.join(', ')}: veja na foto se o aluno apagou uma delas.` : '',
+    brancos.length ? `Em branco: questão ${brancos.join(', ')}.` : '',
     faltam.length ? `Confira a leitura da questão ${faltam.join(', ')}: a marcação não está clara.` : '',
     numeroOk ? '' : 'Digite o número de chamada do aluno.',
   ].filter(Boolean).join(' ');

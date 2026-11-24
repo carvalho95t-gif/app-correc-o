@@ -729,3 +729,16 @@ test('prova do Word: arquivo que não é .docx explica o que fazer', async () =>
   await page.waitForFunction(() => /salve como \.docx/.test(document.querySelector('#prova-msg').textContent));
   await ctx.close();
 });
+
+// ---------- plano: destacar dupla marcação ou rasura (pesquisa A) ----------
+test('conferência avisa marcação dupla ou rasura e questão em branco', async () => {
+  const { ctx, page } = await abrirApp();
+  await criarProva(page);
+  await fotografarECorrigir(page, '2A', '07', [...'ABCDEABCD', null]);
+  await page.selectOption('#respostas select[data-q="1"]', 'dupla');
+  const p = await page.textContent('#pendencias');
+  assert.match(p, /Marcação dupla ou rasura na questão 2/);
+  assert.match(p, /Em branco: questão 10\./);
+  assert.ok(await page.isEnabled('#salvar-leitura')); // é só um aviso
+  await ctx.close();
+});
