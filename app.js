@@ -4,7 +4,7 @@ import { folhaSVG, quadroSVG } from './src/folha.js';
 import { qrSVG, textoQR, lerQR } from './src/qr.js';
 import { carregar, salvar, definirProva, arquivoInicial, ativo, comAtivo, escolher, novaProva, apagarProva, listar,
   acharPorNome, validarAreas, registrar, chave, remover, marcarExportado, definirLista, nomeDo, versaoDe } from './src/estado.js';
-import { montarPlanilha, nomeArquivo, porTurma, notaDe, lerPlanilha, temParciais, lerConceitos, conceitoDe, posicoes, analiseDaProva } from './src/planilha.js';
+import { montarPlanilha, nomeArquivo, porTurma, notaDe, lerPlanilha, temParciais, lerConceitos, conceitoDe, posicoes, analiseDaProva, listaDeLinhas, gabaritoDeLinhas } from './src/planilha.js';
 import { paraCinza, lerFolha, homografia, aplicar, acharMarcadores, quadroPronto, razaoDe } from './src/leitor.js';
 import { codificar } from './src/codigo.js';
 import { cadernoHTML, estiloDePagina } from './src/caderno.js';
@@ -310,6 +310,18 @@ let parcialAberto = false;
 const linhaParcial = (i, certa, credito = {}) => letras(rascunho).map(a => (a === certa
   ? `<span class="parcial-certa">${a} 100%</span>`
   : `<label>${a} <input type="number" inputmode="numeric" min="0" max="100" step="5" data-parcial="${i}" data-alt="${a}" value="${Math.round((credito[a] ?? 0) * 100)}" aria-label="Questão ${i + 1}, alternativa ${a}, % da questão">%</label>`)).join('');
+$('#gabarito-arquivo').addEventListener('change', async e => {
+  const f = e.target.files[0], msg = $('#prova-msg'); e.target.value = '';
+  if (!f) return;
+  let g = [];
+  try { g = gabaritoDeLinhas(await linhasDoArquivo(f), letras(rascunho).join('')); } catch { /* cai na mensagem abaixo */ }
+  if (!g.length || g.length > 90) { msg.textContent = 'Não achei o gabarito nesse arquivo. Use uma coluna com a questão e outra com a letra, ou uma coluna só de letras.'; return; }
+  if (g.length !== numQuestoes(rascunho)) { $('#prova-num').value = g.length; $('#prova-num').dispatchEvent(new Event('change')); }
+  rascunho.versoes[editando].gabarito = g;
+  renderProva();
+  const faltam = g.flatMap((x, i) => (x ? [] : [i + 1]));
+  msg.textContent = `Gabarito de ${g.length} questões trazido de "${f.name}".` + (faltam.length ? ` Falta a letra da questão ${faltam.join(', ')}.` : '') + ' Confira e salve a prova.';
+});
 $('#parcial-ativar').addEventListener('change', e => {
   parcialAberto = e.target.checked;
   if (!parcialAberto) rascunho.versoes.forEach(v => delete v.parciais);
@@ -706,6 +718,20 @@ $('#resultados').addEventListener('click', async e => {
 $('#lista-turma').addEventListener('input', e => {
   const nomes = estado.chamadas?.[e.target.value.trim().toUpperCase()];
   $('#lista-nomes').value = nomes ? Object.entries(nomes).map(([n, nome]) => `${n} ${nome}`).join('\n') : '';
+});
+// Linhas da primeira aba de uma planilha ou CSV escolhido pelo professor.
+async function linhasDoArquivo(f) {
+  const wb = /\.csv$/i.test(f.name) ? XLSX.read(await f.text(), { type: 'string' }) : XLSX.read(await f.arrayBuffer(), { type: 'array' });
+  return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
+}
+$('#lista-arquivo').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  let texto = '';
+  try { texto = listaDeLinhas(await linhasDoArquivo(f)); } catch { /* cai na mensagem abaixo */ }
+  if (!texto) { $('#lista-msg').textContent = 'Não achei nomes nesse arquivo. Use uma planilha com os nomes numa coluna.'; return; }
+  $('#lista-nomes').value = texto;
+  $('#lista-msg').textContent = `${texto.split('\n').length} nomes trazidos de "${f.name}". Confira, digite a turma e toque em Salvar lista.`;
 });
 $('#salvar-lista').addEventListener('click', () => {
   const turma = $('#lista-turma').value.trim();

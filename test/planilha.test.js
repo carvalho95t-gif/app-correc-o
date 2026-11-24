@@ -389,3 +389,18 @@ test('análise na tela: % de cada alternativa, % de acerto e notas da prova', ()
   assert.equal(a.questoes[0].branco, 25);
   assert.deepEqual(a.notas, [7.5, 7.5, 5, 2.5]);
 });
+
+// ---------- plano: importar lista da turma e gabarito de planilha/CSV ----------
+import { listaDeLinhas, gabaritoDeLinhas } from '../src/planilha.js';
+test('lista da turma de uma planilha: com número ou só nomes, pulando o cabeçalho', () => {
+  assert.equal(listaDeLinhas([['Nº', 'Nome'], [1, 'Ana Souza'], [2, 'Bia Lima'], ['', ''], [10, 'Caio']]), '01 Ana Souza\n02 Bia Lima\n10 Caio');
+  assert.equal(listaDeLinhas([['Nome do aluno'], ['Ana'], ['Bia']]), 'Ana\nBia');
+  assert.equal(listaDeLinhas([['2A', 'Ana', 'ana@x.com']]), 'Ana');
+});
+test('gabarito de uma planilha: questão e letra, uma coluna de letras ou uma linha', () => {
+  assert.deepEqual(gabaritoDeLinhas([['Questão', 'Resposta'], [1, 'a'], [2, 'D'], [3, 'e']], 'ABCDE'), ['A', 'D', 'E']);
+  assert.deepEqual(gabaritoDeLinhas([['B'], ['C']], 'ABCDE'), ['B', 'C']);
+  assert.deepEqual(gabaritoDeLinhas([['A', 'B', 'C', 'D']], 'ABCD'), ['A', 'B', 'C', 'D']);
+  assert.deepEqual(gabaritoDeLinhas([[1, 'X'], [2, 'B']], 'ABCDE'), ['', 'B']);
+  assert.deepEqual(gabaritoDeLinhas([['nada']], 'ABCDE'), []);
+});

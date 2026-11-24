@@ -768,3 +768,23 @@ test('resultados: posição, conceito e análise das questões e das notas na te
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+// ---------- plano: importar lista e gabarito de planilha/CSV ----------
+test('lista da turma e gabarito trazidos de arquivos CSV', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await page.click('#aba-prova');
+  await page.fill('#prova-nome', 'Do CSV');
+  await page.setInputFiles('#gabarito-arquivo', { name: 'gabarito.csv', mimeType: 'text/csv', buffer: Buffer.from('Questão;Resposta\n1;b\n2;C\n3;a\n') });
+  await page.waitForFunction(() => /Gabarito de 3 questões/.test(document.querySelector('#prova-msg').textContent));
+  assert.equal(await page.inputValue('#prova-num'), '3');
+  assert.equal(await page.getAttribute('#gabarito button[data-q="1"][data-alt="C"]', 'aria-pressed'), 'true');
+  await page.click('#salvar-prova');
+  assert.match(await page.textContent('#prova-msg'), /Prova salva/);
+  await page.click('#aba-resultados');
+  await page.click('#lista summary');
+  await page.setInputFiles('#lista-arquivo', { name: 'turma.csv', mimeType: 'text/csv', buffer: Buffer.from('Nº,Nome\n1,Ana Souza\n2,Bia Lima\n') });
+  await page.waitForFunction(() => /2 nomes trazidos/.test(document.querySelector('#lista-msg').textContent));
+  assert.equal(await page.inputValue('#lista-nomes'), '01 Ana Souza\n02 Bia Lima');
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});

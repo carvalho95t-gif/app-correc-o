@@ -192,3 +192,28 @@ export function lerPlanilha(XLSX, wb) {
 }
 
 export const nomeArquivo = prova => `${prova.nome.replace(/[\\/:*?"<>|]/g, '-').trim() || 'resultados'}.xlsx`;
+
+// ---------- importar de planilha ou CSV (linhas já lidas pela SheetJS) ----------
+const celula = v => String(v ?? '').trim();
+// Lista da turma: "07 Ana Souza" quando a linha tem número, senão só o nome; o cabeçalho e linhas vazias ficam de fora.
+export function listaDeLinhas(linhas) {
+  return linhas.flatMap(l => {
+    const cs = l.map(celula).filter(Boolean), num = cs.find(c => /^\d{1,2}$/.test(c));
+    const nome = cs.find(c => /\p{L}/u.test(c) && !/@/.test(c) && !/^(n[º°o.]*|nome.*|aluno.*|estudante.*|n[úu]mero.*|\d+[a-z]?)$/i.test(c));
+    return nome ? [num ? `${num.padStart(2, '0')} ${nome}` : nome] : [];
+  }).join('\n');
+}
+// Gabarito: linhas "questão, letra", uma coluna de letras ou uma linha de letras. Letra fora da prova fica ''.
+export function gabaritoDeLinhas(linhas, letras) {
+  const letra = c => (letras.includes(celula(c).toUpperCase()) ? celula(c).toUpperCase() : '');
+  const ehLetra = c => /^[A-Za-z]$/.test(celula(c));
+  const pares = linhas.filter(l => /^\d{1,3}$/.test(celula(l[0])) && l.length > 1);
+  if (pares.length) {
+    const g = [];
+    for (const l of pares) g[+celula(l[0]) - 1] = letra(l[1]);
+    return Array.from(g, x => x ?? '');
+  }
+  const coluna = linhas.map(l => l[0]).filter(ehLetra);
+  if (coluna.length > 1) return coluna.map(letra);
+  return (linhas.find(l => l.filter(ehLetra).length > 1) ?? []).filter(ehLetra).map(letra);
+}

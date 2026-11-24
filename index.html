@@ -47,6 +47,8 @@
       <h3>Gabarito</h3>
       <div id="versoes-gabarito" class="acoes" hidden></div>
       <p class="dica">Toque na alternativa certa de cada questão. "Anular" conta a questão como certa para todos.</p>
+      <label for="gabarito-arquivo" class="botao">Trazer o gabarito de uma planilha ou CSV</label>
+      <input id="gabarito-arquivo" type="file" accept=".xlsx,.xls,.csv,.ods" class="oculto">
       <label class="opcao"><input type="checkbox" id="parcial-ativar"> Pontuação parcial: alternativas erradas valem parte da questão</label>
       <div id="gabarito"></div>
       <details id="caderno-editor">
@@ -160,6 +162,8 @@
         <p class="dica">Cole um nome por linha, na ordem da chamada. Se preferir, comece a linha pelo número (ex.: "07 Ana Souza").</p>
         <label for="lista-turma">Turma</label>
         <input id="lista-turma" autocomplete="off" placeholder="Ex.: 2A">
+        <label for="lista-arquivo" class="botao">Trazer os nomes de uma planilha ou CSV</label>
+        <input id="lista-arquivo" type="file" accept=".xlsx,.xls,.csv,.ods" class="oculto">
         <label for="lista-nomes">Nomes</label>
         <textarea id="lista-nomes" rows="8"></textarea>
         <p id="lista-msg" role="status"></p>
