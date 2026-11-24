@@ -49,6 +49,17 @@
       <details id="caderno-editor">
         <summary>Caderno de prova (opcional)</summary>
         <p class="dica">Digite ou cole cada questão e marque a alternativa certa: o gabarito acima se preenche sozinho. O app imprime o caderno junto com a folha.</p>
+        <details id="cabecalho-prova">
+          <summary>Cabeçalho da prova</summary>
+          <label>Escola (uma linha por linha do cabeçalho; a última sai maior)<textarea rows="4" data-cab="escola" placeholder="GOVERNO DO ESTADO...&#10;ESCOLA ESTADUAL..."></textarea></label>
+          <label>Título <input data-cab="titulo" placeholder="Avaliação de Recuperação Final"></label>
+          <label>Subtítulo <input data-cab="subtitulo" placeholder="Filosofia – 2ª série do Ensino Médio – 2026"></label>
+          <label>Nome curto (topo das páginas) <input data-cab="nomeCurto" placeholder="Recuperação Final – Filosofia – 2ª série"></label>
+          <label>Professor <input data-cab="professor"></label>
+          <label>Disciplina <input data-cab="disciplina"></label>
+          <label>Série <input data-cab="serie"></label>
+          <label>Instruções extras (uma por linha) <textarea rows="2" data-cab="instrucoes" placeholder="O tempo de prova será informado pelo(a) professor(a)."></textarea></label>
+        </details>
         <div id="caderno-questoes"></div>
         <h4>Versões embaralhadas</h4>
         <p class="dica">Escolha 2 a 4 versões em "Versões" acima. O app troca a ordem e gera o gabarito de cada versão.</p>

@@ -473,8 +473,8 @@ test('caderno: digitar 3 questões, gabarito sai do caderno e a impressão traz 
   await page.click('#aba-folha');
   const texto = await page.textContent('#caderno');
   assert.match(texto, /Caderno 1/);
-  assert.match(texto, /1\..*Enunciado da questão 1 <b>/s);
-  assert.match(texto, /B\).*opção B1/s);
+  assert.match(texto, /QUESTÃO 01.*Enunciado da questão 1 <b>/s);
+  assert.match(texto, /b\).*opção B1/s);
   assert.match(await page.innerHTML('#caderno'), /questão 1 &lt;b&gt;/); // texto digitado não vira HTML
   assert.ok(await page.isVisible('#imprimir-caderno'));
   assert.equal(await page.locator('#folha svg').count(), 1);
@@ -489,11 +489,57 @@ test('impressão: folha em 1 página e caderno curto + folha em 2 páginas', asy
   assert.equal(paginas(await page.pdf({ preferCSSPageSize: true })), 1);
   await page.click('#aba-prova');
   await page.click('#caderno-editor summary');
-  for (let i = 0; i < 5; i++) await page.fill(`#caderno-questoes [data-cq="${i}"] textarea`, 'Texto '.repeat(40));
+  for (let i = 0; i < 5; i++) await page.fill(`#caderno-questoes [data-cq="${i}"] textarea[data-campo="enunciado"]`, 'Texto '.repeat(15));
   await page.click('#salvar-prova');
   await page.click('#aba-folha');
   await page.evaluate(() => { document.querySelector('#folha').before(document.querySelector('#caderno')); document.body.classList.add('com-caderno'); });
-  assert.equal(paginas(await page.pdf({ preferCSSPageSize: true })), 2);
+  assert.equal(paginas(await page.pdf({ preferCSSPageSize: true })), 4); // página 1, duas de questões, folha
+  await ctx.close();
+});
+
+// ---------- prova impressa 01: modelo do professor ----------
+test('prova impressa: cabeçalho, identificação, instruções e questão no modelo do professor', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await page.click('#aba-prova');
+  await page.fill('#prova-nome', 'Recuperação');
+  await page.fill('#prova-num', '20');
+  await page.dispatchEvent('#prova-num', 'change');
+  await page.fill('#prova-valor', '100');
+  await page.click('#caderno-editor summary');
+  await page.click('#cabecalho-prova summary');
+  await page.fill('[data-cab="escola"]', 'GOVERNO DO ESTADO\nESCOLA ESTADUAL <X>');
+  await page.fill('[data-cab="titulo"]', 'Avaliação de Recuperação Final');
+  await page.fill('[data-cab="subtitulo"]', 'Filosofia – 2ª série');
+  await page.fill('[data-cab="professor"]', 'Tiago');
+  await page.fill('[data-cab="disciplina"]', 'Filosofia');
+  await page.fill('[data-cab="serie"]', '2ª');
+  await page.fill('[data-cab="instrucoes"]', 'O tempo de prova será informado.');
+  for (let i = 0; i < 20; i++) {
+    await page.fill(`#caderno-questoes [data-cq="${i}"] textarea[data-campo="enunciado"]`, `Texto-base ${i + 1}`);
+    await page.check(`#caderno-questoes [data-cq="${i}"] input[type=radio][value="A"]`);
+  }
+  await page.fill('#caderno-questoes [data-cq="0"] input[data-campo="fonte"]', 'Texto elaborado a partir de Montaigne.');
+  await page.fill('#caderno-questoes [data-cq="0"] textarea[data-campo="comando"]', 'Montaigne sugere que:');
+  await page.click('#salvar-prova');
+  assert.match(await page.textContent('#prova-msg'), /Prova salva/);
+  await page.click('#aba-folha');
+  const html = await page.innerHTML('#caderno'), texto = await page.textContent('#caderno');
+  assert.match(html, /class="nome-escola">ESCOLA ESTADUAL &lt;X&gt;/);
+  assert.match(texto, /Avaliação de Recuperação Final/);
+  assert.match(texto, /Professor:\s*Tiago/);
+  assert.match(texto, /Nota:.*\/ 100,0/);
+  assert.match(texto, /20 questões objetivas/);
+  assert.match(texto, /Cada questão vale 5,0 pontos, totalizando 100,0 pontos/);
+  assert.match(texto, /O tempo de prova será informado/);
+  assert.match(texto, /QUESTÃO 01\s*\(5,0 pontos\)/);
+  assert.match(html, /class="fonte">Texto elaborado a partir de Montaigne\./);
+  assert.match(html, /class="comando">Montaigne sugere que:/);
+  assert.match(html, /Recuperação   " counter\(page\)/);
+  // depois de recarregar, o cabeçalho continua no editor
+  await page.reload();
+  await page.click('#aba-prova');
+  assert.equal(await page.inputValue('[data-cab="professor"]'), 'Tiago');
+  assert.deepEqual(erros, []);
   await ctx.close();
 });
 

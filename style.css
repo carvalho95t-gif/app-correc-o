@@ -42,7 +42,7 @@ dialog { border: 0; border-radius: 12px; max-width: 360px; }
   header, nav, main > section > *:not(#folha-pronta), #folha-pronta > *:not(#folha):not(#caderno), dialog { display: none !important; }
   body:not(.com-caderno) #caderno, body.com-caderno #folha { display: none !important; }
   .folha-impressa svg { display: block; width: 210mm; height: 297mm; break-after: page; }
-  .caderno-pagina { break-after: page; box-shadow: none; margin: 0; }
+  #caderno .caderno-pagina { break-after: page; box-shadow: none; margin: 0; padding: 0; }
   body, main { padding: 0; margin: 0; background: white; }
   #tela-folha { display: block !important; }
   main > section:not(#tela-folha) { display: none !important; }
@@ -67,12 +67,33 @@ details#caderno-editor { margin: 16px 0; background: white; padding: 8px 12px; b
 .cq { border-top: 1px solid #e5e7eb; padding: 8px 0; }
 .cq .alt { display: flex; gap: 6px; align-items: center; margin: 4px 0; }
 .cq .alt input[type=text] { flex: 1; }
-#caderno .caderno-pagina { background: white; padding: 16mm; margin: 12px 0; font-family: Arial, sans-serif; font-size: 11pt; box-shadow: 0 1px 4px #0002; }
-.caderno-pagina h1 { font-size: 14pt; margin: 0 0 6px; }
-.caderno-pagina ol.questoes { list-style: none; padding: 0; columns: 2; column-gap: 8mm; }
-.caderno-pagina .questao { break-inside: avoid; margin-bottom: 10px; }
+#caderno .caderno-pagina { background: white; padding: 14mm 18mm; margin: 12px 0; font: 11.5pt/1.35 "Times New Roman", Times, serif; color: black; box-shadow: 0 1px 4px #0002; text-align: justify; hyphens: auto; }
+.caderno-pagina .capa { page: capa; break-after: page; text-align: center; }
+.caderno-pagina .escola { font-weight: bold; font-size: 11.5pt; line-height: 1.15; border-bottom: 1px solid black; padding-bottom: 4px; margin-bottom: 8px; }
+.caderno-pagina .escola .nome-escola { font-size: 14pt; }
+.caderno-pagina h1 { font-size: 14pt; margin: 4px 0 0; text-transform: uppercase; }
+.caderno-pagina .subtitulo { font-weight: bold; text-transform: uppercase; margin: 2px 0 8px; }
+.caderno-pagina table.identificacao { width: 100%; border-collapse: collapse; text-align: left; margin-bottom: 14px; }
+.caderno-pagina table.identificacao td { border: 1px solid black; padding: 2px 6px; }
+.caderno-pagina table.identificacao td:first-child { width: 50%; }
+.caderno-pagina .linha { display: inline-block; width: 70%; border-bottom: 1px solid black; }
+.caderno-pagina .instrucoes { border: 1px solid black; background: #f0f0f0; padding: 4px 8px; text-align: left; font-size: 10pt; margin-bottom: 14px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.caderno-pagina .instrucoes h2 { font-size: 11.5pt; text-align: center; margin: 0 0 2px; text-transform: uppercase; }
+.caderno-pagina .instrucoes ol { margin: 0; padding-left: 1.6em; }
+.caderno-pagina ol.questoes { list-style: none; padding: 0; margin: 0; page: questoes; }
+.caderno-pagina .questao { break-inside: avoid; margin-bottom: 18px; }
+.caderno-pagina .questao h3 { font-size: 11.5pt; margin: 0 0 8px; }
+.caderno-pagina .questao h3 small { font-weight: normal; font-size: 9pt; }
+.caderno-pagina .texto-base { margin: 0 0 2px 2.2em; line-height: 1.15; }
+.caderno-pagina .fonte { margin: 0; text-align: right; font-style: italic; font-size: 9pt; }
+.caderno-pagina .comando { font-weight: bold; margin: 10px 0 8px; }
 .caderno-pagina ol.alternativas { list-style: none; padding-left: 0; margin: 4px 0; }
-.caderno-pagina img { max-width: 100%; }
+.caderno-pagina ol.alternativas li { margin: 4px 0; line-height: 1.5; }
+.caderno-pagina img { max-width: 100%; display: block; margin: 6px auto; }
 .miniatura { display: block; max-width: 160px; margin: 6px 0; border: 1px solid var(--borda); }
 .folha-impressa svg { width: 100%; height: auto; border: 1px solid var(--borda); }
 #embaralhar-nota { white-space: pre-line; }
+details#cabecalho-prova { margin: 8px 0; }
+details#cabecalho-prova summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+details#cabecalho-prova label, .cq label { display: block; margin: 6px 0; }
+details#cabecalho-prova input, .cq input[data-campo] { width: 100%; font: inherit; padding: 8px; border: 1px solid var(--borda); border-radius: 8px; }

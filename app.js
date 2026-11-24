@@ -6,7 +6,7 @@ import { carregar, salvar, definirProva, arquivoInicial, ativo, comAtivo, escolh
 import { montarPlanilha, nomeArquivo, porTurma, notaDe, lerPlanilha } from './src/planilha.js';
 import { paraCinza, lerFolha, homografia, aplicar, acharMarcadores, quadroPronto } from './src/leitor.js';
 import { codificar } from './src/codigo.js';
-import { cadernoHTML } from './src/caderno.js';
+import { cadernoHTML, estiloDePagina } from './src/caderno.js';
 import { ehEmbaralhada, cadernoDaVersao } from './src/embaralhar.js';
 import { carregarImagens, guardarImagem, apagarImagens, ehRef, resolver, reduzir } from './src/imagens.js';
 
@@ -115,10 +115,14 @@ function ajustarCaderno() {
 }
 function renderCadernoEditor() {
   ajustarCaderno();
+  const cab = rascunho.caderno.cabecalho ?? {};
+  document.querySelectorAll('[data-cab]').forEach(el => { el.value = cab[el.dataset.cab] ?? ''; });
   const g = rascunho.versoes[0].gabarito;
   $('#caderno-questoes').innerHTML = rascunho.caderno.questoes.map((q, i) => `
     <div class="cq" data-cq="${i}">
-      <label>Questão ${i + 1}<textarea rows="3" data-campo="enunciado">${esc(q.enunciado)}</textarea></label>
+      <label>Questão ${i + 1}: texto-base<textarea rows="3" data-campo="enunciado">${esc(q.enunciado)}</textarea></label>
+      <label>Fonte <input data-campo="fonte" value="${esc(q.fonte ?? '')}" placeholder="Texto elaborado a partir de..."></label>
+      <label>Comando <textarea rows="2" data-campo="comando">${esc(q.comando ?? '')}</textarea></label>
       ${q.imagem ? `<img class="miniatura" src="${esc(resolver(imagens, q.imagem))}" alt="Imagem da questão ${i + 1}"><button data-tirar-imagem>Remover imagem</button>`
         : `<label class="botao">Adicionar imagem<input type="file" accept="image/*" class="oculto" aria-label="Imagem da questão ${i + 1}"></label>`}
       ${letras(rascunho).map((a, j) => `<div class="alt">
@@ -127,9 +131,14 @@ function renderCadernoEditor() {
       </div>`).join('')}
     </div>`).join('');
 }
+$('#cabecalho-prova').addEventListener('input', e => {
+  if (!e.target.dataset.cab) return;
+  ajustarCaderno();
+  rascunho.caderno.cabecalho = { ...rascunho.caderno.cabecalho, [e.target.dataset.cab]: e.target.value };
+});
 $('#caderno-questoes').addEventListener('input', e => {
   const i = +e.target.closest('[data-cq]').dataset.cq, q = rascunho.caderno.questoes[i];
-  if (e.target.dataset.campo === 'enunciado') q.enunciado = e.target.value;
+  if (e.target.dataset.campo) q[e.target.dataset.campo] = e.target.value;
   else if (e.target.dataset.texto) q.alternativas[letras(rascunho).indexOf(e.target.dataset.texto)] = e.target.value;
 });
 $('#caderno-questoes').addEventListener('click', e => {
@@ -340,7 +349,8 @@ function renderFolha() {
   $('#imprimir-caderno').hidden = !comCaderno;
   // Para imprimir: o caderno de cada versão seguido da sua folha.
   $('#caderno').innerHTML = !comCaderno ? '' : (emb ? prova.versoes : [0]).map((_, k) =>
-    cadernoHTML(comImagens(cadernoDaVersao(prova, k)), emb ? `Versão ${'ABCD'[k]}` : '') + `<div class="folha-impressa">${folhas[k]}</div>`).join('');
+    cadernoHTML(comImagens(cadernoDaVersao(prova, k)), emb ? `Versão ${'ABCD'[k]}` : '') + `<div class="folha-impressa">${folhas[k]}</div>`).join('') +
+    `<style>${estiloDePagina(prova)}</style>`;
   $('#pagina').textContent = `@page { size: A4 ${duas ? 'landscape' : 'portrait'}; margin: 0; }`;
 }
 $('#duas-por-pagina').addEventListener('change', renderFolha);
