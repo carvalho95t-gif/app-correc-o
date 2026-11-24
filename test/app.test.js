@@ -692,3 +692,40 @@ test('pontuação parcial: errada que vale 75% entra na nota da conferência e c
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+// ---------- plano 2: prova a partir de um arquivo Word ----------
+test('prova do Word: questões, texto-base, fonte, comando, imagem, cabeçalho e gabarito vêm do .docx', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await page.click('#aba-prova');
+  await page.setInputFiles('#importar-docx', join(import.meta.dirname, 'fixtures', 'prova-exemplo.docx'));
+  await page.waitForFunction(() => /importadas/.test(document.querySelector('#prova-msg').textContent));
+  assert.match(await page.textContent('#prova-msg'), /3 questões importadas.*O gabarito também veio do arquivo/);
+  assert.equal(await page.inputValue('#prova-nome'), 'AVALIAÇÃO DE RECUPERAÇÃO FINAL');
+  assert.equal(await page.getAttribute('#gabarito button[data-q="0"][data-alt="D"]', 'aria-pressed'), 'true');
+  assert.equal(await page.getAttribute('#gabarito button[data-q="2"][data-alt="B"]', 'aria-pressed'), 'true');
+  const q = n => `#caderno-questoes [data-cq="${n}"]`;
+  assert.match(await page.inputValue(`${q(0)} textarea[data-campo="enunciado"]`), /^Montaigne observou/);
+  assert.match(await page.inputValue(`${q(0)} input[data-campo="fonte"]`), /^Texto elaborado a partir de Michel de Montaigne/);
+  assert.equal(await page.inputValue(`${q(0)} textarea[data-campo="comando"]`), 'Ao comparar os costumes, Montaigne sugere que:');
+  assert.equal(await page.inputValue(`${q(0)} input[data-texto="D"]`), 'chamamos de bárbaro o que difere dos nossos costumes, o que revela um julgamento etnocêntrico.');
+  assert.match(await page.inputValue(`${q(1)} input[data-campo="fonte"]`), /^KANT, Immanuel/);
+  assert.equal(await page.locator(`${q(1)} img.miniatura`).count(), 1);
+  assert.equal(await page.inputValue(`${q(2)} textarea[data-campo="comando"]`), '');
+  await page.$eval('#cabecalho-prova', d => { d.open = true; });
+  assert.equal(await page.inputValue('[data-cab="professor"]'), 'Tiago Carvalho');
+  assert.equal(await page.inputValue('[data-cab="disciplina"]'), 'Filosofia');
+  assert.equal(await page.inputValue('[data-cab="subtitulo"]'), 'FILOSOFIA – 2ª SÉRIE DO ENSINO MÉDIO – 2026');
+  assert.match(await page.inputValue('[data-cab="escola"]'), /GOVERNO DO ESTADO DO ESPÍRITO SANTO\n.*\nESCOLA ESTADUAL EXEMPLO/);
+  await page.click('#salvar-prova');
+  assert.match(await page.textContent('#prova-msg'), /Prova salva/);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+test('prova do Word: arquivo que não é .docx explica o que fazer', async () => {
+  const { ctx, page } = await abrirApp();
+  await page.click('#aba-prova');
+  await page.setInputFiles('#importar-docx', { name: 'velha.docx', mimeType: 'application/octet-stream', buffer: Buffer.from('não é zip') });
+  await page.waitForFunction(() => /salve como \.docx/.test(document.querySelector('#prova-msg').textContent));
+  await ctx.close();
+});

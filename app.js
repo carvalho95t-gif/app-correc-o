@@ -9,6 +9,7 @@ import { paraCinza, lerFolha, homografia, aplicar, acharMarcadores, quadroPronto
 import { codificar } from './src/codigo.js';
 import { cadernoHTML, estiloDePagina } from './src/caderno.js';
 import { ehEmbaralhada, cadernoDaVersao } from './src/embaralhar.js';
+import { lerDocx } from './src/docx.js';
 import { carregarImagens, guardarImagem, apagarImagens, ehRef, resolver, reduzir } from './src/imagens.js';
 
 const $ = s => document.querySelector(s);
@@ -225,6 +226,33 @@ $('#areas').addEventListener('click', e => {
   rascunho.areas.splice(+b.dataset.removerArea, 1);
   renderProva();
 });
+// Prova a partir de um .docx: vira o rascunho de uma prova nova (caderno, cabeçalho e gabarito), para conferir e salvar.
+$('#importar-docx').addEventListener('change', async e => {
+  const f = e.target.files[0], msg = $('#prova-msg');
+  e.target.value = '';
+  if (!f) return;
+  let lida;
+  try { lida = await lerDocx(await f.arrayBuffer()); } catch { msg.textContent = 'Não consegui ler esse arquivo. Abra no Word, salve como .docx e tente de novo.'; return; }
+  const qs = lida.questoes.filter(q => q.alternativas.length >= 2);
+  if (!qs.length) { msg.textContent = 'Não achei questões nesse arquivo. Cada questão deve começar com "QUESTÃO 1" e ter alternativas "a)" a "e)".'; return; }
+  const n = Math.max(...qs.map(q => q.alternativas.length)), alternativas = n === 4 ? 'ABCD' : 'ABCDE';
+  const gabarito = lida.questoes.flatMap((q, i) => (q.alternativas.length >= 2 ? [alternativas.includes(lida.gabarito[i]) ? lida.gabarito[i] : ''] : []));
+  gravar(novaProva(arquivo)); editando = 0; parcialAberto = false;
+  rascunho = { ...provaEmBranco(), nome: (lida.cabecalho.titulo ?? f.name.replace(/\.docx$/i, '')).slice(0, 80),
+    ...(alternativas !== 'ABCDE' ? { alternativas } : {}), versoes: [{ gabarito, anuladas: [] }],
+    caderno: { cabecalho: lida.cabecalho, questoes: [] } };
+  for (const q of qs) {
+    const { imagem, ...resto } = q, nova = { ...resto, alternativas: Array.from({ length: alternativas.length }, (_, j) => q.alternativas[j] ?? '') };
+    if (imagem) try { const dataURL = await reduzir(imagem); nova.imagem = dataURL; nova.imagem = await guardarImagem(dataURL); imagens[nova.imagem.slice(4)] = dataURL; } catch { /* sem imagem ou sem IndexedDB */ }
+    rascunho.caderno.questoes.push(nova);
+  }
+  renderProva();
+  $('#caderno-editor').open = true;
+  const faltam = gabarito.flatMap((g, i) => (g ? [] : [i + 1]));
+  msg.textContent = `${qs.length} questões importadas de "${f.name}". ` + (faltam.length
+    ? `Não achei o gabarito da questão ${faltam.join(', ')}: marque a alternativa certa. Depois confira e toque em Salvar prova.`
+    : 'O gabarito também veio do arquivo. Confira e toque em Salvar prova.');
+});
 $('#prova-ativa').addEventListener('change', e => {
   if (!e.target.value) return;
   gravar(escolher(arquivo, e.target.value));
@@ -232,7 +260,7 @@ $('#prova-ativa').addEventListener('change', e => {
   renderProva();
 });
 $('#nova-prova').addEventListener('click', () => {
-  gravar(novaProva(arquivo));
+  gravar(novaProva(arquivo)); parcialAberto = false;
   rascunho = provaEmBranco(); $('#prova-msg').textContent = '';
   renderProva();
 });
