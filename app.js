@@ -474,6 +474,48 @@ $('#foto').addEventListener('change', async e => {
   await lerImagem(img, img.width, img.height);
 });
 
+function abrirConferencia(versao) {
+  $('#canvas').hidden = !leitura.foto; $('#legenda-foto').hidden = !leitura.foto;
+  $('#versao-campo').hidden = estado.prova.versoes.length < 2;
+  $('#versao').innerHTML = '<option value="">Confira</option>' +
+    estado.prova.versoes.map((_, k) => `<option value="${'ABCD'[k]}">Versão ${'ABCD'[k]}</option>`).join('');
+  $('#versao').value = versao;
+  renderConferencia();
+  $('#conferencia').hidden = false;
+  $('#conferencia').scrollIntoView();
+}
+
+// Várias fotos da galeria: uma conferência de cada vez; a próxima abre depois de salvar ou descartar.
+let fila = [], semLeitura = [];
+$('#fotos').addEventListener('change', e => {
+  fila = [...e.target.files]; semLeitura = [];
+  e.target.value = '';
+  $('#erro-leitura').hidden = true; $('#corrigir-msg').textContent = '';
+  if (!$('#turma').value.trim()) { fila = []; mostrarErro('Digite a turma antes de escolher as fotos.'); return; }
+  proximaDaFila();
+});
+async function proximaDaFila() {
+  while (fila.length) {
+    const f = fila.shift();
+    $('#fila-status').textContent = `Foto "${f.name}"${fila.length ? ` · faltam ${fila.length}` : ''}`;
+    try { const img = await createImageBitmap(f); await lerImagem(img, img.width, img.height); } catch { leitura = null; }
+    if (leitura) return; // espera o professor salvar ou descartar
+    semLeitura.push(f.name); $('#erro-leitura').hidden = true;
+  }
+  $('#fila-status').textContent = '';
+  if (semLeitura.length) { mostrarErro(`Não consegui ler: ${semLeitura.join(', ')}. Fotografe essas folhas de novo.`); semLeitura = []; }
+}
+
+// Sem foto: o professor digita as respostas do aluno.
+$('#digitar').addEventListener('click', () => {
+  $('#erro-leitura').hidden = true; $('#corrigir-msg').textContent = ''; $('#aviso-codigo').hidden = true;
+  if (!$('#turma').value.trim()) { mostrarErro('Digite a turma antes de digitar as respostas.'); return; }
+  const n = numQuestoes(estado.prova);
+  leitura = { layout: null, foto: null, H: null, original: Array(n).fill(''), valores: Array(n).fill('') };
+  $('#numero').value = '';
+  abrirConferencia(estado.prova.versoes.length === 1 ? 'A' : '');
+});
+
 // Tenta o quadro do gabarito (página 1 da prova) e depois a folha avulsa. No quadro, a prova vem do QR.
 async function ler(cinza, foto, prova) {
   const quadro = quadroDa(prova), noQuadro = lerFolha(cinza, quadro);
@@ -525,14 +567,8 @@ async function lerImagem(img, largura, altura) {
       valores: l.respostas.map(r => (r.duvidosa ? '' : r.marca)),
     };
     $('#numero').value = l.numero && !l.numeroDuvidoso ? l.numero : '';
-    $('#versao-campo').hidden = estado.prova.versoes.length < 2;
-    $('#versao').innerHTML = '<option value="">Confira</option>' +
-      estado.prova.versoes.map((_, k) => `<option value="${'ABCD'[k]}">Versão ${'ABCD'[k]}</option>`).join('');
     // Prova embaralhada sem código legível: a folha não tem bolinhas de versão, o professor escolhe.
-    $('#versao').value = l.codigo?.versao ?? (ehEmbaralhada(estado.prova) ? '' : l.versao && !l.versaoDuvidosa ? l.versao : '');
-    renderConferencia();
-    $('#conferencia').hidden = false;
-    $('#conferencia').scrollIntoView();
+    abrirConferencia(l.codigo?.versao ?? (ehEmbaralhada(estado.prova) ? '' : l.versao && !l.versaoDuvidosa ? l.versao : ''));
   } catch {
     mostrarErro('Não consegui abrir essa foto. Tente fotografar de novo.');
   } finally { $('#lendo').hidden = true; }
@@ -639,6 +675,7 @@ function atualizarConferencia() {
 }
 
 function desenhar() {
+  if (!leitura.foto) return; // respostas digitadas
   const cv = $('#canvas'), ctx = cv.getContext('2d'), { layout, H } = leitura;
   ctx.putImageData(leitura.foto, 0, 0);
   const cor = { certa: '#15803d', errada: '#b91c1c', confira: '#ca8a04' };
@@ -663,15 +700,15 @@ $('#respostas').addEventListener('change', e => {
 });
 $('#numero').addEventListener('input', atualizarConferencia);
 $('#versao').addEventListener('change', atualizarConferencia);
-$('#descartar').addEventListener('click', () => { $('#conferencia').hidden = true; leitura = null; if (modoCamera) abrirCamera(); });
+$('#descartar').addEventListener('click', () => { $('#conferencia').hidden = true; leitura = null; if (modoCamera) abrirCamera(); else proximaDaFila(); });
 $('#salvar-leitura').addEventListener('click', async () => {
   const turma = $('#turma').value.trim().toUpperCase(), numero = $('#numero').value.trim().padStart(2, '0');
   if (estado.correcoes[chave(turma, numero)] &&
       !(await perguntar(`O nº ${numero} da turma ${turma} já foi corrigido. Trocar pela correção nova?`, 'Trocar pela nova', 'Manter a anterior'))) return;
   persistir(registrar(estado, { turma, numero, versao: $('#versao').value, respostas: [...leitura.valores], editado: leitura.valores.some((v, i) => v !== leitura.original[i]) }));
   $('#conferencia').hidden = true; leitura = null;
-  $('#corrigir-msg').textContent = `Correção do nº ${numero} (${turma}) salva. ${modoCamera ? 'Aponte para a próxima folha.' : 'Fotografe a próxima folha.'}`;
-  if (modoCamera) abrirCamera();
+  $('#corrigir-msg').textContent = `Correção do nº ${numero} (${turma}) salva. ${modoCamera ? 'Aponte para a próxima folha.' : fila.length ? '' : 'Fotografe a próxima folha.'}`;
+  if (modoCamera) abrirCamera(); else proximaDaFila();
 });
 
 // ---------- resultados ----------

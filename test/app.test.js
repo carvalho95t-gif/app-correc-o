@@ -808,3 +808,48 @@ test('duplicar prova: cópia com o mesmo gabarito, outro nome e sem correções'
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+// ---------- plano: várias fotos da galeria e corrigir digitando ----------
+test('várias fotos da galeria: uma conferência por vez e aviso das que não deu para ler', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await criarProva(page);
+  const f1 = await fotografarFolha(page, '01', [...'ABCDEABCDE']);
+  const f2 = await fotografarFolha(page, '02', [...'ABCDEABCDA']);
+  await page.click('#aba-corrigir');
+  await page.fill('#turma', '2A');
+  await page.setInputFiles('#fotos', [
+    { name: 'a.png', mimeType: 'image/png', buffer: f1 },
+    { name: 'ruim.png', mimeType: 'image/png', buffer: await page.screenshot() },
+    { name: 'b.png', mimeType: 'image/png', buffer: f2 },
+  ]);
+  await page.waitForSelector('#conferencia:not([hidden])');
+  assert.equal(await page.inputValue('#numero'), '01');
+  assert.match(await page.textContent('#fila-status'), /faltam 2/);
+  await page.click('#salvar-leitura');
+  await page.waitForFunction(() => document.querySelector('#numero').value === '02');
+  assert.match(await page.textContent('#placar'), /9 de 10/);
+  await page.click('#salvar-leitura');
+  await page.waitForSelector('#erro-leitura:not([hidden])');
+  assert.match(await page.textContent('#erro-leitura'), /Não consegui ler: ruim\.png/);
+  assert.equal(await page.evaluate(() => Object.keys(Object.values(JSON.parse(localStorage.getItem('correcao-v3')).provas)[0].correcoes).length), 2);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+test('corrigir digitando as respostas, sem foto', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await criarProva(page);
+  await page.click('#aba-corrigir');
+  await page.fill('#turma', '2A');
+  await page.click('#digitar');
+  await page.waitForSelector('#conferencia:not([hidden])');
+  assert.ok(await page.isHidden('#canvas'));
+  assert.ok(await page.isDisabled('#salvar-leitura'));
+  for (const [i, a] of [...'ABCDEABCDA'].entries()) await page.selectOption(`#respostas select[data-q="${i}"]`, a);
+  await page.fill('#numero', '15');
+  assert.match(await page.textContent('#placar'), /9 de 10/);
+  await page.click('#salvar-leitura');
+  assert.match(await page.textContent('#corrigir-msg'), /nº 15 \(2A\) salva/);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});

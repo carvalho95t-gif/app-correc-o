@@ -117,6 +117,12 @@
         <button id="abrir-camera" class="primario">Corrigir com a câmera</button>
         <label for="foto" class="botao">Fotografar folha</label>
         <input id="foto" type="file" accept="image/*" capture="environment" class="oculto">
+        <div class="acoes">
+          <label for="fotos" class="botao">Escolher fotos da galeria</label>
+          <input id="fotos" type="file" accept="image/*" multiple class="oculto">
+          <button id="digitar">Digitar as respostas</button>
+        </div>
+        <p id="fila-status" role="status"></p>
         <p class="dica">Enquadre a folha inteira, com os 4 quadrados pretos visíveis, sobre uma mesa e com boa luz.</p>
         <div id="camera" hidden>
           <video id="video" playsinline muted aria-label="Imagem da câmera"></video>
@@ -131,7 +137,7 @@
           <h3>Confira a leitura</h3>
           <p id="aviso-codigo" class="erro" role="alert" hidden></p>
           <canvas id="canvas" aria-label="Foto da folha com as marcações lidas"></canvas>
-          <p class="legenda"><span class="ok">●</span> certa <span class="erro">●</span> errada <span class="aviso">●</span> confira</p>
+          <p class="legenda" id="legenda-foto"><span class="ok">●</span> certa <span class="erro">●</span> errada <span class="aviso">●</span> confira</p>
           <div id="versao-campo" hidden>
             <label for="versao">Versão da prova</label>
             <select id="versao"></select>
