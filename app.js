@@ -4,7 +4,7 @@ import { folhaSVG, quadroSVG } from './src/folha.js';
 import { qrSVG, textoQR, lerQR } from './src/qr.js';
 import { carregar, salvar, definirProva, arquivoInicial, ativo, comAtivo, escolher, novaProva, apagarProva, listar,
   acharPorNome, validarAreas, registrar, chave, remover, marcarExportado, definirLista, nomeDo, versaoDe } from './src/estado.js';
-import { montarPlanilha, nomeArquivo, porTurma, notaDe, lerPlanilha } from './src/planilha.js';
+import { montarPlanilha, nomeArquivo, porTurma, notaDe, lerPlanilha, temParciais } from './src/planilha.js';
 import { paraCinza, lerFolha, homografia, aplicar, acharMarcadores, quadroPronto, razaoDe } from './src/leitor.js';
 import { codificar } from './src/codigo.js';
 import { cadernoHTML, estiloDePagina } from './src/caderno.js';
@@ -107,12 +107,15 @@ function renderProva() {
       <label>até a <input name="ate" type="number" inputmode="numeric" min="1" value="${a.ate ?? ''}"></label>
       <button data-remover-area="${k}" aria-label="Remover a área ${esc(a.nome)}">Remover</button>
     </div>`).join('');
+  if (rascunho.versoes.some(temParciais)) parcialAberto = true;
+  const parciais = rascunho.versoes[editando].parciais ?? [];
+  $('#parcial-ativar').checked = parcialAberto;
   $('#gabarito').innerHTML = gabarito.map((g, i) => `
     <div class="linha" role="group" aria-label="Questão ${i + 1}">
       <span class="num">${i + 1}</span>
       ${letras(rascunho).map(a => `<button data-q="${i}" data-alt="${a}" aria-pressed="${g === a}" aria-label="Questão ${i + 1}, alternativa ${a}">${a}</button>`).join('')}
       <label><input type="checkbox" data-anular="${i}" ${anuladas.includes(i) ? 'checked' : ''}> Anular</label>
-    </div>`).join('');
+    </div>${parcialAberto ? `<div class="parciais" data-pq="${i}">${linhaParcial(i, g, parciais[i])}</div>` : ''}`).join('');
 }
 // O caderno tem uma questão por questão da prova; o gabarito da versão A é a alternativa certa.
 const questaoVazia = () => ({ enunciado: '', alternativas: [] });
@@ -273,11 +276,30 @@ $('#importar').addEventListener('change', async e => {
 });
 $('#prova-nome').addEventListener('input', e => { rascunho.nome = e.target.value; });
 $('#prova-valor').addEventListener('input', e => { rascunho.valor = e.target.value; });
+// Pontuação parcial: % da questão que cada alternativa errada vale (a certa vale 100%).
+let parcialAberto = false;
+const linhaParcial = (i, certa, credito = {}) => letras(rascunho).map(a => (a === certa
+  ? `<span class="parcial-certa">${a} 100%</span>`
+  : `<label>${a} <input type="number" inputmode="numeric" min="0" max="100" step="5" data-parcial="${i}" data-alt="${a}" value="${Math.round((credito[a] ?? 0) * 100)}" aria-label="Questão ${i + 1}, alternativa ${a}, % da questão">%</label>`)).join('');
+$('#parcial-ativar').addEventListener('change', e => {
+  parcialAberto = e.target.checked;
+  if (!parcialAberto) rascunho.versoes.forEach(v => delete v.parciais);
+  renderProva();
+});
+$('#gabarito').addEventListener('input', e => {
+  const i = e.target.dataset.parcial;
+  if (i === undefined) return;
+  const v = rascunho.versoes[editando], f = Math.min(100, Math.max(0, Number(e.target.value) || 0)) / 100;
+  v.parciais ??= v.gabarito.map(() => ({}));
+  v.parciais[+i] = { ...v.parciais[+i], [e.target.dataset.alt]: f };
+  if (!f) delete v.parciais[+i][e.target.dataset.alt];
+});
 $('#prova-num').addEventListener('change', e => {
   const n = Math.max(1, Math.min(90, parseInt(e.target.value, 10) || 1));
   if (n === numQuestoes(rascunho)) return; // evita redesenhar a lista no meio de um toque
   rascunho.versoes = rascunho.versoes.map(v => ({
-    gabarito: Array.from({ length: n }, (_, i) => v.gabarito[i] ?? ''), anuladas: v.anuladas.filter(i => i < n) }));
+    gabarito: Array.from({ length: n }, (_, i) => v.gabarito[i] ?? ''), anuladas: v.anuladas.filter(i => i < n),
+    ...(v.parciais ? { parciais: Array.from({ length: n }, (_, i) => v.parciais[i] ?? {}) } : {}) }));
   if (rascunho.pesos) rascunho.pesos = Array.from({ length: n }, (_, i) => rascunho.pesos[i] ?? 1);
   renderProva();
 });
@@ -300,8 +322,12 @@ $('#versoes-gabarito').addEventListener('click', e => {
 $('#gabarito').addEventListener('click', e => {
   const b = e.target.closest('button[data-q]');
   if (!b) return;
-  rascunho.versoes[editando].gabarito[+b.dataset.q] = b.dataset.alt;
+  const v = rascunho.versoes[editando], i = +b.dataset.q;
+  v.gabarito[i] = b.dataset.alt;
+  if (v.parciais?.[i]) delete v.parciais[i][b.dataset.alt]; // a certa vale 100%
   b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  const linha = document.querySelector(`#gabarito [data-pq="${i}"]`);
+  if (linha) linha.innerHTML = linhaParcial(i, b.dataset.alt, v.parciais?.[i]);
 });
 $('#gabarito').addEventListener('change', e => {
   const q = +e.target.dataset.anular;
@@ -324,7 +350,8 @@ $('#salvar-prova').addEventListener('click', () => {
   if (problema) { msg.textContent = problema; return; }
   try {
     persistir(definirProva(estado, { codigo: estado.prova?.codigo ?? novoCodigo(), ...(temCaderno(rascunho) ? { caderno: structuredClone(rascunho.caderno) } : {}), ...(areas.length ? { areas } : {}), nome: rascunho.nome.trim(), valor, ...((rascunho.alternativas ?? 'ABCDE') !== 'ABCDE' ? { alternativas: rascunho.alternativas } : {}), ...(rascunho.pesos?.some(p => p !== 1) ? { pesos: [...rascunho.pesos] } : {}),
-      versoes: rascunho.versoes.map(v => ({ gabarito: v.gabarito.map(g => g || letras(rascunho)[0]), anuladas: [...v.anuladas] })) }));
+      versoes: rascunho.versoes.map(v => ({ gabarito: v.gabarito.map(g => g || letras(rascunho)[0]), anuladas: [...v.anuladas],
+        ...(temParciais(v) ? { parciais: v.parciais.map((o, i) => Object.fromEntries(Object.entries(o ?? {}).filter(([a, f]) => f > 0 && a !== v.gabarito[i]))) } : {}) })) }));
     renderProva();
     msg.textContent = 'Prova salva. Agora imprima a folha na aba Folha.';
   } catch (err) { msg.textContent = err.message; }

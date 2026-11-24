@@ -668,3 +668,27 @@ test('embaralhar marcado sem caderno não salva versões sem gabarito', async ()
   assert.match(await page.textContent('#prova-msg'), /Falta o gabarito da versão B/);
   await ctx.close();
 });
+
+// ---------- plano 1: pontuação parcial por alternativa ----------
+test('pontuação parcial: errada que vale 75% entra na nota da conferência e continua depois de recarregar', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await page.click('#aba-prova');
+  await page.fill('#prova-nome', 'Parcial');
+  await page.fill('#prova-num', '4');
+  await page.dispatchEvent('#prova-num', 'change');
+  await page.check('#parcial-ativar');
+  for (const [i, a] of [...'ABCD'].entries()) await page.click(`#gabarito button[data-q="${i}"][data-alt="${a}"]`);
+  await page.fill('#gabarito input[data-parcial="0"][data-alt="B"]', '75');
+  await page.fill('#gabarito input[data-parcial="0"][data-alt="C"]', '50');
+  assert.equal(await page.locator('#gabarito input[data-parcial="0"][data-alt="A"]').count(), 0); // a certa vale 100%
+  await page.click('#salvar-prova');
+  assert.match(await page.textContent('#prova-msg'), /Prova salva/);
+  await fotografarECorrigir(page, '2A', '01', [...'BBCD']);
+  assert.match(await page.textContent('#placar'), /3 de 4 acertos · nota 9,4/); // 3,75 de 4
+  await page.reload();
+  await page.click('#aba-prova');
+  assert.ok(await page.isChecked('#parcial-ativar'));
+  assert.equal(await page.inputValue('#gabarito input[data-parcial="0"][data-alt="B"]'), '75');
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});

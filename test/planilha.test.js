@@ -332,3 +332,33 @@ test('embaralhado: com correções salvas não dá para mudar o embaralhamento',
   const mesmo = { ...e.prova, versoes: [e.prova.versoes[0], e.prova.versoes[0]] };
   assert.doesNotThrow(() => definirProva(e, mesmo)); // salvar de novo sem mudar nada continua valendo
 });
+
+// ---------- plano 1: pontuação parcial por alternativa ----------
+// Como o Tiago usa no EvalBee: a certa vale 100%, as erradas 75%, 50%, 25% ou 0% da questão.
+const parciais = [{ B: 0.75, C: 0.5, D: 0.25 }, {}, { A: 0.5 }, {}];
+test('pontuação parcial: errada com crédito soma parte da questão na nota e na planilha', () => {
+  const e = estadoExemplo({ versoes: [{ gabarito: ['A', 'B', 'C', 'D'], anuladas: [], parciais }] });
+  const t = objetos(releitura(montarPlanilha(XLSX, e)), '2B');
+  // nº 03 marcou A,E,E,D: Q1 certa, Q4 certa = 2 pontos; nº 04 marcou branco,E,dupla,D = 1 ponto
+  const n3 = t.find(r => r['Nº'] === '03'), n4 = t.find(r => r['Nº'] === '04');
+  assert.equal(n3.Acertos, 2); assert.equal(n3.Pontos, 2); assert.equal(n3.Nota, 5);
+  assert.equal(n4.Pontos, 1);
+  const e2 = registrar(e, corr('2B', '05', ['B', 'B', 'A', 'A'])); // 0,75 + 1 + 0,5 + 0 = 2,25 de 4
+  const n5 = objetos(releitura(montarPlanilha(XLSX, e2)), '2B').find(r => r['Nº'] === '05');
+  assert.equal(n5.Acertos, 1); assert.equal(n5.Pontos, 2.25); assert.equal(n5.Nota, 5.6);
+});
+test('pontuação parcial: restaurar da planilha traz os créditos', () => {
+  const e = estadoExemplo({ versoes: [{ gabarito: ['A', 'B', 'C', 'D'], anuladas: [], parciais }] });
+  assert.deepEqual(lerPlanilha(XLSX, releitura(montarPlanilha(XLSX, e))).prova.versoes[0].parciais, parciais);
+});
+test('pontuação parcial em prova embaralhada: vale pela alternativa original', () => {
+  const v = { gabarito: ['A', 'B', 'C', 'D', 'E', 'A'], anuladas: [], parciais: [{ B: 0.5 }, {}, {}, {}, {}, {}] };
+  const { prova } = definirProva(estadoInicial(), { nome: 'Emb', valor: 10, versoes: [v, v], caderno: cadernoEmb({ questoes: true, alternativas: true }) });
+  assert.deepEqual(prova.versoes[0].parciais, v.parciais);
+  // na folha B, a questão 1 do original está na posição p; a letra que mostra a alternativa B original
+  const p = prova.versoes[1].ordem.indexOf(0), letraB = 'ABCDE'[prova.versoes[1].trocas[p].indexOf(1)];
+  const respostas = certasB(prova); respostas[p] = letraB;
+  const e = registrar({ ...estadoInicial(), prova }, { turma: '1A', numero: '01', versao: 'B', respostas, editado: false });
+  const linha = objetos(releitura(montarPlanilha(XLSX, e)), '1A').find(r => r['Nº'] === '01');
+  assert.equal(linha.Acertos, 5); assert.equal(linha.Pontos, 5.5);
+});

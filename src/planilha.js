@@ -24,9 +24,9 @@ const numeroBR = n => n.toLocaleString('pt-BR');
 const LETRA = 'ABCD';
 // Prova embaralhada: a nota é sempre pela questão original, para os pesos e as áreas seguirem a questão.
 export function notaDe(prova, c) {
-  if (ehEmbaralhada(prova)) { const v = prova.versoes[0]; return corrigir(v.gabarito, v.anuladas, paraOriginal(prova, c), prova.pesos, prova.areas); }
+  if (ehEmbaralhada(prova)) { const v = prova.versoes[0]; return corrigir(v.gabarito, v.anuladas, paraOriginal(prova, c), prova.pesos, prova.areas, v.parciais); }
   const v = versaoDe(prova, c.versao);
-  return corrigir(v.gabarito, v.anuladas, c.respostas, prova.pesos, prova.areas);
+  return corrigir(v.gabarito, v.anuladas, c.respostas, prova.pesos, prova.areas, v.parciais);
 }
 // Para a planilha, uma prova embaralhada vira uma prova de versão única com as marcações pela original;
 // a versão impressa fica só para mostrar na coluna Versão.
@@ -37,21 +37,22 @@ function vistaOriginal(estado) {
     [k, { ...c, respostas: paraOriginal(prova, c), versao: undefined, versaoImpressa: c.versao ?? 'A' }]));
   return { ...estado, prova: { ...prova, versoes: [prova.versoes[0]] }, correcoes, versoesImpressas: prova.versoes.length };
 }
+export const temParciais = v => !!v.parciais?.some(o => Object.values(o ?? {}).some(f => f > 0));
 const comGabarito = v => v.gabarito.map((g, i) => (v.anuladas.includes(i) ? 'ANULADA' : g));
 
 function abaTurma(estado, turma, correcoes) {
   const { prova } = estado, comValor = prova.valor !== 10, comNomes = !!estado.chamadas?.[turma], comVersoes = (estado.versoesImpressas ?? prova.versoes.length) > 1;
   const nome = c => (comNomes ? [nomeDo(estado, turma, c.numero)] : []);
-  const n = prova.versoes[0].gabarito.length, comPesos = !!prova.pesos?.some(p => p !== 1);
+  const n = prova.versoes[0].gabarito.length, comParciais = prova.versoes.some(temParciais), comPesos = !!prova.pesos?.some(p => p !== 1);
   const cabecalho = ['Nº', ...(comNomes ? ['Nome'] : []), ...(comVersoes ? ['Versão'] : []), ...[...Array(n)].map((_, i) => `Q${i + 1}`),
-    'Acertos', ...(comPesos ? ['Pontos'] : []), '%', 'Nota', ...(comValor ? [`Nota (valor ${numeroBR(prova.valor)})`] : []),
+    'Acertos', ...(comPesos || comParciais ? ['Pontos'] : []), '%', 'Nota', ...(comValor ? [`Nota (valor ${numeroBR(prova.valor)})`] : []),
     ...(prova.areas ?? []).flatMap(a => [`${a.nome} acertos`, `${a.nome} %`])];
   const pesos = comPesos ? [['Peso', ...(comNomes ? [''] : []), ...(comVersoes ? [''] : []), ...prova.pesos]] : [];
   const gabaritos = prova.versoes.map((v, i) => ['Gabarito', ...(comNomes ? [''] : []), ...(comVersoes ? [estado.versoesImpressas ? '' : LETRA[i]] : []), ...comGabarito(v)]);
   const alunos = correcoes.map(c => {
     const r = notaDe(prova, c);
     const extra = comValor ? [Math.round((r.pontos / r.possiveis) * prova.valor * 10) / 10] : [];
-    return [c.numero, ...nome(c), ...(comVersoes ? [c.versaoImpressa ?? c.versao ?? 'A'] : []), ...c.respostas, r.acertos, ...(comPesos ? [r.pontos] : []), r.percentual, r.nota, ...extra, ...r.porArea.flatMap(a => [a.acertos, a.percentual])];
+    return [c.numero, ...nome(c), ...(comVersoes ? [c.versaoImpressa ?? c.versao ?? 'A'] : []), ...c.respostas, r.acertos, ...(comPesos || comParciais ? [r.pontos] : []), r.percentual, r.nota, ...extra, ...r.porArea.flatMap(a => [a.acertos, a.percentual])];
   });
   return [cabecalho, ...pesos, ...gabaritos, ...alunos];
 }

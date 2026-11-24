@@ -105,3 +105,6 @@ details#cabecalho-prova { margin: 8px 0; }
 details#cabecalho-prova summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
 details#cabecalho-prova label, .cq label { display: block; margin: 6px 0; }
 details#cabecalho-prova input, .cq input[data-campo] { width: 100%; font: inherit; padding: 8px; border: 1px solid var(--borda); border-radius: 8px; }
+.parciais { display: flex; flex-wrap: wrap; gap: 6px 10px; padding: 2px 0 8px 28px; font-size: .9rem; border-bottom: 1px solid #e5e7eb; }
+.parciais input { width: 3.6em; }
+.parcial-certa { color: var(--verde); font-weight: 600; }
