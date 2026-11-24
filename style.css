@@ -42,7 +42,8 @@ dialog { border: 0; border-radius: 12px; max-width: 360px; }
   header, nav, main > section > *:not(#folha-pronta), #folha-pronta > *:not(#folha):not(#caderno), dialog { display: none !important; }
   body:not(.com-caderno) #caderno, body.com-caderno #folha { display: none !important; }
   .folha-impressa svg { display: block; width: 210mm; height: 297mm; break-after: page; }
-  #caderno .caderno-pagina { break-after: page; box-shadow: none; margin: 0; padding: 0; }
+  /* !important: a regra de tela vem depois e somaria o padding às margens do @page */
+  #caderno .caderno-pagina { break-after: page; box-shadow: none !important; margin: 0 !important; padding: 0 !important; }
   body, main { padding: 0; margin: 0; background: white; }
   #tela-folha { display: block !important; }
   main > section:not(#tela-folha) { display: none !important; }
@@ -68,7 +69,7 @@ details#caderno-editor { margin: 16px 0; background: white; padding: 8px 12px; b
 .cq .alt { display: flex; gap: 6px; align-items: center; margin: 4px 0; }
 .cq .alt input[type=text] { flex: 1; }
 #caderno .caderno-pagina { background: white; padding: 30mm 20mm 20mm 30mm; margin: 12px 0; font: 12pt/1.5 "Times New Roman", Times, serif; color: black; box-shadow: 0 1px 4px #0002; text-align: justify; hyphens: auto; }
-.caderno-pagina .capa { page: capa; break-after: page; text-align: center; }
+.caderno-pagina .capa { page: capa; text-align: center; }
 .caderno-pagina .escola { font-weight: bold; font-size: 12pt; line-height: 1.15; border-bottom: 1px solid black; padding-bottom: 4px; margin-bottom: 8px; }
 .caderno-pagina .escola .nome-escola { font-size: 14pt; }
 .caderno-pagina h1 { font-size: 12pt; margin: 4px 0 0; text-transform: uppercase; }
@@ -84,7 +85,7 @@ details#caderno-editor { margin: 16px 0; background: white; padding: 8px 12px; b
 .caderno-pagina .quadro-gabarito svg { display: block; width: 100%; max-width: 174mm; height: auto; margin: 0 auto; }
 .caderno-pagina .assinaturas { display: flex; gap: 12mm; margin-top: 14mm; font-size: 10pt; }
 .caderno-pagina .assinaturas div { flex: 1; border-top: 1px solid black; padding-top: 2px; text-align: center; }
-.caderno-pagina ol.questoes { list-style: none; padding: 0; margin: 0; page: questoes; column-count: 2; column-gap: 8mm; column-rule: 0.5pt solid black; }
+.caderno-pagina ol.questoes { list-style: none; padding: 0; margin: 0; page: questoes; break-before: page; column-count: 2; column-gap: 8mm; background: linear-gradient(black, black) center / 0.5pt 100% no-repeat; box-decoration-break: clone; -webkit-box-decoration-break: clone; -webkit-print-color-adjust: exact; print-color-adjust: exact; } /* linha do meio como fundo: o column-rule do Chromium deixa um ponto no fim da página 1 */
 .caderno-pagina .questao { margin-bottom: 12pt; } /* como no Gradepen, a questão pode continuar na outra coluna */
 .caderno-pagina .questao h3 { break-after: avoid; }
 .caderno-pagina ol.alternativas li { break-inside: avoid; }
