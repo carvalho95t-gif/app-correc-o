@@ -4,7 +4,7 @@
 
 **Blocked by:** 06
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Seam Planilha: restaurar traz a imagem
 - [ ] Seam App: anexar uma imagem grande, ver reduzida no caderno impresso e continuar lá depois de recarregar

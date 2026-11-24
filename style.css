@@ -72,3 +72,4 @@ details#caderno-editor { margin: 16px 0; background: white; padding: 8px 12px; b
 .caderno-pagina .questao { break-inside: avoid; margin-bottom: 10px; }
 .caderno-pagina ol.alternativas { list-style: none; padding-left: 0; margin: 4px 0; }
 .caderno-pagina img { max-width: 100%; }
+.miniatura { display: block; max-width: 160px; margin: 6px 0; border: 1px solid var(--borda); }

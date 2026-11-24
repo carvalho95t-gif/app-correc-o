@@ -256,3 +256,10 @@ test('restaurar traz o caderno', () => {
   const wb = releitura(montarPlanilha(XLSX, estadoExemplo({ caderno })));
   assert.deepEqual(lerPlanilha(XLSX, wb).prova.caderno, caderno);
 });
+
+test('restaurar traz a imagem da questão', () => {
+  const imagem = 'data:image/jpeg;base64,' + 'A'.repeat(70000); // maior que uma célula do Excel
+  const caderno = { questoes: ['Q1', 'Q2', 'Q3', 'Q4'].map((t, i) => ({ enunciado: t, alternativas: [], ...(i === 1 ? { imagem } : {}) })) };
+  const wb = releitura(montarPlanilha(XLSX, estadoExemplo({ caderno })));
+  assert.equal(lerPlanilha(XLSX, wb).prova.caderno.questoes[1].imagem, imagem);
+});

@@ -488,3 +488,34 @@ test('impressão: folha em 1 página e caderno curto + folha em 2 páginas', asy
   assert.equal(paginas(await page.pdf({ preferCSSPageSize: true })), 2);
   await ctx.close();
 });
+
+// ---------- novas funções 07: imagens nas questões ----------
+test('imagem na questão: fica reduzida no caderno e continua depois de recarregar', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'imagem-'));
+  execFileSync('ffmpeg', ['-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc=size=2400x1600', '-frames:v', '1', join(dir, 'grande.png')]);
+  const { ctx, page, erros } = await abrirApp();
+  await page.click('#aba-prova');
+  await page.fill('#prova-nome', 'Com imagem');
+  await page.fill('#prova-num', '2');
+  await page.dispatchEvent('#prova-num', 'change');
+  await page.click('#caderno-editor summary');
+  for (const i of [0, 1]) {
+    await page.fill(`#caderno-questoes [data-cq="${i}"] textarea`, `Questão ${i + 1}`);
+    await page.check(`#caderno-questoes [data-cq="${i}"] input[type=radio][value="A"]`);
+  }
+  await page.setInputFiles('#caderno-questoes [data-cq="1"] input[type=file]', join(dir, 'grande.png'));
+  await page.waitForSelector('#caderno-questoes [data-cq="1"] img');
+  await page.click('#salvar-prova');
+  const confere = async () => {
+    await page.click('#aba-folha');
+    const img = page.locator('#caderno img');
+    await img.waitFor();
+    const [w, h] = await img.evaluate(i => i.decode().then(() => [i.naturalWidth, i.naturalHeight]));
+    assert.equal(w, 800); assert.equal(h, 533);
+  };
+  await confere();
+  await page.reload();
+  await confere();
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});

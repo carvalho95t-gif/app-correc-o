@@ -8,6 +8,7 @@ import { paraCinza, lerFolha, homografia, aplicar, acharMarcadores, quadroPronto
 import { corrigir } from './src/nota.js';
 import { codificar } from './src/codigo.js';
 import { cadernoHTML } from './src/caderno.js';
+import { carregarImagens, guardarImagem, apagarImagens, ehRef, resolver, reduzir } from './src/imagens.js';
 
 const $ = s => document.querySelector(s);
 const letras = p => [...(p.alternativas ?? 'ABCDE')];
@@ -15,6 +16,12 @@ const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(
 const ROTULO = { branco: 'Em branco', dupla: 'Dupla marcação' };
 const nota1 = n => n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 let leitura = null; // leitura em conferência
+let imagens = {}; // chave → data URL, lidas do IndexedDB na abertura
+try { imagens = await carregarImagens(); } catch { /* navegador sem IndexedDB: imagens ficam na própria prova */ }
+// A prova com as imagens do caderno no lugar das referências, para imprimir e para a planilha.
+const comImagens = p => (p?.caderno ? { ...p, caderno: { ...p.caderno,
+  questoes: p.caderno.questoes.map(q => (q.imagem ? { ...q, imagem: resolver(imagens, q.imagem) } : q)) } } : p);
+const refsDe = p => (p?.caderno?.questoes ?? []).map(q => q.imagem).filter(ehRef);
 
 let armazenamento = null;
 try { localStorage.setItem('teste', '1'); armazenamento = localStorage; } catch { /* navegador sem armazenamento */ }
@@ -103,6 +110,8 @@ function renderCadernoEditor() {
   $('#caderno-questoes').innerHTML = rascunho.caderno.questoes.map((q, i) => `
     <div class="cq" data-cq="${i}">
       <label>Questão ${i + 1}<textarea rows="3" data-campo="enunciado">${esc(q.enunciado)}</textarea></label>
+      ${q.imagem ? `<img class="miniatura" src="${esc(resolver(imagens, q.imagem))}" alt="Imagem da questão ${i + 1}"><button data-tirar-imagem>Remover imagem</button>`
+        : `<label class="botao">Adicionar imagem<input type="file" accept="image/*" class="oculto" aria-label="Imagem da questão ${i + 1}"></label>`}
       ${letras(rascunho).map((a, j) => `<div class="alt">
         <input type="radio" name="certa-${i}" value="${a}" ${g[i] === a ? 'checked' : ''} aria-label="Questão ${i + 1}: ${a} é a certa">
         <b>${a})</b><input type="text" data-texto="${a}" value="${esc(q.alternativas[j] ?? '')}" aria-label="Questão ${i + 1}, texto da alternativa ${a}">
@@ -114,7 +123,25 @@ $('#caderno-questoes').addEventListener('input', e => {
   if (e.target.dataset.campo === 'enunciado') q.enunciado = e.target.value;
   else if (e.target.dataset.texto) q.alternativas[letras(rascunho).indexOf(e.target.dataset.texto)] = e.target.value;
 });
-$('#caderno-questoes').addEventListener('change', e => {
+$('#caderno-questoes').addEventListener('click', e => {
+  if (!e.target.matches('[data-tirar-imagem]')) return;
+  // shortcut: a imagem tirada continua no IndexedDB até apagar a prova; limpar órfãs se o espaço virar problema.
+  delete rascunho.caderno.questoes[+e.target.closest('[data-cq]').dataset.cq].imagem;
+  renderCadernoEditor();
+});
+$('#caderno-questoes').addEventListener('change', async e => {
+  if (e.target.type === 'file') {
+    const i = +e.target.closest('[data-cq]').dataset.cq, f = e.target.files[0];
+    if (!f) return;
+    try {
+      const dataURL = await reduzir(f);
+      let ref = dataURL;
+      try { ref = await guardarImagem(dataURL); imagens[ref.slice(4)] = dataURL; } catch { /* sem IndexedDB: fica na prova */ }
+      rascunho.caderno.questoes[i].imagem = ref;
+      renderCadernoEditor();
+    } catch { $('#prova-msg').textContent = 'Não consegui abrir essa imagem. Tente outra.'; }
+    return;
+  }
   if (e.target.type !== 'radio') return;
   const i = +e.target.closest('[data-cq]').dataset.cq;
   rascunho.versoes[0].gabarito[i] = e.target.value;
@@ -174,6 +201,7 @@ $('#apagar-prova').addEventListener('click', async () => {
       ? `Apagar a prova "${nome}" e todas as correções dela? Há correções que ainda não estão na planilha, e elas serão perdidas.`
       : `Apagar a prova "${nome}" e todas as correções dela?`, 'Apagar prova', 'Manter');
     if (!ok) return;
+    apagarImagens(refsDe(estado.prova)).catch(() => {});
     gravar(apagarProva(arquivo, arquivo.ativa));
   }
   rascunho = provaEmBranco(); $('#prova-msg').textContent = '';
@@ -193,6 +221,10 @@ $('#importar').addEventListener('change', async e => {
     const aviso = arquivo.provas[existente].pendente ? ' Ela tem correções que ainda não estão em nenhuma planilha e serão perdidas.' : '';
     if (await perguntar(`Já existe uma prova "${nome}" no app.${aviso} Substituir pela da planilha?`, 'Substituir', 'Manter as duas')) base = escolher(arquivo, existente);
     else restaurado.prova = { ...restaurado.prova, nome: `${nome} (restaurada)` };
+  }
+  for (const q of restaurado.prova.caderno?.questoes ?? []) {
+    if (!q.imagem || ehRef(q.imagem)) continue;
+    try { const dataURL = q.imagem; q.imagem = await guardarImagem(dataURL); imagens[q.imagem.slice(4)] = dataURL; } catch { /* fica na prova */ }
   }
   gravar(comAtivo(base, restaurado));
   rascunho = structuredClone(estado.prova);
@@ -279,7 +311,7 @@ function renderFolha() {
   $('#folha').classList.toggle('duas', duas);
   const comCaderno = temCaderno(estado.prova);
   $('#imprimir-caderno').hidden = !comCaderno;
-  $('#caderno').innerHTML = comCaderno ? cadernoHTML(estado.prova) : '';
+  $('#caderno').innerHTML = comCaderno ? cadernoHTML(comImagens(estado.prova)) : '';
   $('#pagina').textContent = `@page { size: A4 ${duas ? 'landscape' : 'portrait'}; margin: 0; }`;
 }
 $('#duas-por-pagina').addEventListener('change', renderFolha);
@@ -516,7 +548,7 @@ $('#salvar-lista').addEventListener('click', () => {
   renderResultados();
 });
 $('#baixar').addEventListener('click', () => {
-  XLSX.writeFile(montarPlanilha(XLSX, estado), nomeArquivo(estado.prova));
+  XLSX.writeFile(montarPlanilha(XLSX, { ...estado, prova: comImagens(estado.prova) }), nomeArquivo(estado.prova));
   persistir(marcarExportado(estado));
 });
 
