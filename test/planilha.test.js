@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { montarPlanilha, nomeArquivo, lerPlanilha } from '../src/planilha.js';
-import { definirProva, registrar, estadoInicial, definirLista } from '../src/estado.js';
+import { definirProva, registrar, estadoInicial, definirLista, validarAreas } from '../src/estado.js';
 
 const XLSX = createRequire(import.meta.url)('../vendor/xlsx.mini.min.js');
 const linhas = (wb, aba) => XLSX.utils.sheet_to_json(wb.Sheets[aba], { header: 1, defval: '' });
@@ -221,4 +221,32 @@ test('prova C/E: nota e Análise com as colunas C e E', () => {
 test('não dá para mudar as alternativas com correções salvas', () => {
   const e = estadoExemplo();
   assert.throws(() => definirProva(e, { ...e.prova, alternativas: 'ABCD' }), /outras alternativas/);
+});
+
+// ---------- novas funções 03: nota por área ----------
+const areas = [{ nome: 'Linguagens', de: 1, ate: 2 }, { nome: 'Matemática', de: 3, ate: 4 }];
+
+test('área: acertos e % por área na aba da turma', () => {
+  const l = linhas(montarPlanilha(XLSX, estadoExemplo({ areas })), '2B');
+  assert.deepEqual(l[0].slice(-4), ['Linguagens acertos', 'Linguagens %', 'Matemática acertos', 'Matemática %']);
+  // nº 03: A E E D → Linguagens 1 de 2, Matemática 1 de 2. nº 04: branco E dupla D → 0 e 1.
+  assert.deepEqual(l[2].slice(-4), [1, 50, 1, 50]);
+  assert.deepEqual(l[3].slice(-4), [0, 0, 1, 50]);
+});
+
+test('área: Resumo com a média % por turma', () => {
+  const [a, b, g] = objetos(montarPlanilha(XLSX, estadoExemplo({ areas })), 'Resumo');
+  // 2A: os dois marcaram A B C E → Linguagens 100, Matemática 50. 2B: Linguagens (50+0)/2 = 25, Matemática 50.
+  assert.equal(a['Linguagens % médio'], 100); assert.equal(a['Matemática % médio'], 50);
+  assert.equal(b['Linguagens % médio'], 25);
+  assert.equal(g['Linguagens % médio'], 63);
+});
+
+test('área: recusa sobreposição e intervalo além da última questão; restaurar traz as áreas', () => {
+  assert.match(validarAreas([{ nome: 'X', de: 1, ate: 3 }, { nome: 'Y', de: 3, ate: 4 }], 4), /se sobrepõem/);
+  assert.match(validarAreas([{ nome: 'X', de: 1, ate: 5 }], 4), /até a questão 4/);
+  assert.match(validarAreas([{ nome: '', de: 1, ate: 2 }], 4), /nome/);
+  assert.equal(validarAreas(areas, 4), '');
+  const wb = releitura(montarPlanilha(XLSX, estadoExemplo({ areas })));
+  assert.deepEqual(lerPlanilha(XLSX, wb).prova.areas, areas);
 });

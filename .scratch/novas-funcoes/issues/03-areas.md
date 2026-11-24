@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Seam Planilha: colunas por área e Resumo com média % por turma
 - [ ] Seam Planilha: restaurar traz as áreas

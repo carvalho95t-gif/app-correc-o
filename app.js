@@ -2,7 +2,7 @@
 import { montarLayout } from './src/layout.js';
 import { folhaSVG } from './src/folha.js';
 import { carregar, salvar, definirProva, arquivoInicial, ativo, comAtivo, escolher, novaProva, apagarProva, listar,
-  acharPorNome, registrar, chave, remover, marcarExportado, definirLista, nomeDo, versaoDe } from './src/estado.js';
+  acharPorNome, validarAreas, registrar, chave, remover, marcarExportado, definirLista, nomeDo, versaoDe } from './src/estado.js';
 import { montarPlanilha, nomeArquivo, porTurma, notaDe, lerPlanilha } from './src/planilha.js';
 import { paraCinza, lerFolha, homografia, aplicar } from './src/leitor.js';
 import { corrigir } from './src/nota.js';
@@ -73,6 +73,13 @@ function renderProva() {
   const { gabarito, anuladas } = rascunho.versoes[editando];
   $('#prova-valor').value = rascunho.valor;
   $('#pesos-resumo').textContent = resumoPesos(rascunho.pesos ?? []);
+  $('#areas').innerHTML = (rascunho.areas ?? []).map((a, k) => `
+    <div class="pesos" data-area="${k}">
+      <label>Área <input name="nome" value="${esc(a.nome)}" autocomplete="off"></label>
+      <label>da questão <input name="de" type="number" inputmode="numeric" min="1" value="${a.de ?? ''}"></label>
+      <label>até a <input name="ate" type="number" inputmode="numeric" min="1" value="${a.ate ?? ''}"></label>
+      <button data-remover-area="${k}" aria-label="Remover a área ${esc(a.nome)}">Remover</button>
+    </div>`).join('');
   $('#gabarito').innerHTML = gabarito.map((g, i) => `
     <div class="linha" role="group" aria-label="Questão ${i + 1}">
       <span class="num">${i + 1}</span>
@@ -99,6 +106,20 @@ $('#aplicar-peso').addEventListener('click', () => {
   if (!(de >= 1 && ate >= de && ate <= n)) { $('#pesos-resumo').textContent = `Escolha questões entre 1 e ${n}, com a primeira antes da última.`; return; }
   rascunho.pesos = Array.from({ length: n }, (_, i) => (i >= de - 1 && i <= ate - 1 ? p : rascunho.pesos?.[i] ?? 1));
   $('#pesos-resumo').textContent = resumoPesos(rascunho.pesos);
+});
+$('#adicionar-area').addEventListener('click', () => {
+  rascunho.areas = [...(rascunho.areas ?? []), { nome: '', de: '', ate: '' }];
+  renderProva();
+});
+$('#areas').addEventListener('input', e => {
+  const k = +e.target.closest('[data-area]').dataset.area, campo = e.target.name;
+  rascunho.areas[k][campo] = campo === 'nome' ? e.target.value : parseInt(e.target.value, 10);
+});
+$('#areas').addEventListener('click', e => {
+  const b = e.target.closest('[data-remover-area]');
+  if (!b) return;
+  rascunho.areas.splice(+b.dataset.removerArea, 1);
+  renderProva();
 });
 $('#prova-ativa').addEventListener('change', e => {
   if (!e.target.value) return;
@@ -191,8 +212,11 @@ $('#salvar-prova').addEventListener('click', () => {
     const daVersao = rascunho.versoes.length > 1 ? ` da versão ${'ABCD'[k]}` : '';
     if (faltam.length) { msg.textContent = `Falta o gabarito${daVersao} da questão ${faltam.join(', ')}. Marque a alternativa certa ou anule a questão.`; return; }
   }
+  const areas = (rascunho.areas ?? []).map(a => ({ ...a, nome: a.nome.trim() }));
+  const problema = validarAreas(areas, numQuestoes(rascunho));
+  if (problema) { msg.textContent = problema; return; }
   try {
-    persistir(definirProva(estado, { nome: rascunho.nome.trim(), valor, ...((rascunho.alternativas ?? 'ABCDE') !== 'ABCDE' ? { alternativas: rascunho.alternativas } : {}), ...(rascunho.pesos?.some(p => p !== 1) ? { pesos: [...rascunho.pesos] } : {}),
+    persistir(definirProva(estado, { ...(areas.length ? { areas } : {}), nome: rascunho.nome.trim(), valor, ...((rascunho.alternativas ?? 'ABCDE') !== 'ABCDE' ? { alternativas: rascunho.alternativas } : {}), ...(rascunho.pesos?.some(p => p !== 1) ? { pesos: [...rascunho.pesos] } : {}),
       versoes: rascunho.versoes.map(v => ({ gabarito: v.gabarito.map(g => g || letras(rascunho)[0]), anuladas: [...v.anuladas] })) }));
     msg.textContent = 'Prova salva. Agora imprima a folha na aba Folha.';
   } catch (err) { msg.textContent = err.message; }

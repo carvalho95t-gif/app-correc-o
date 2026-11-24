@@ -44,6 +44,18 @@ export function definirProva(estado, prova) {
   return { ...estado, prova, pendente: estado.pendente || temCorrecoes };
 }
 
+// Áreas: { nome, de, ate } com questões de 1 a n, sem sobreposição. Devolve a mensagem do problema, ou ''.
+export function validarAreas(areas, n) {
+  for (const a of areas) {
+    if (!a.nome?.trim()) return 'Dê um nome a cada área.';
+    if (!(Number.isInteger(a.de) && Number.isInteger(a.ate) && a.de >= 1 && a.ate >= a.de && a.ate <= n))
+      return `A área "${a.nome}" precisa ir de uma questão até outra, até a questão ${n}.`;
+  }
+  const ord = [...areas].sort((a, b) => a.de - b.de);
+  const choque = ord.findIndex((a, i) => i > 0 && a.de <= ord[i - 1].ate);
+  return choque > 0 ? `As áreas "${ord[choque - 1].nome}" e "${ord[choque].nome}" se sobrepõem.` : '';
+}
+
 export const chave = (turma, numero) => `${turma.trim().toUpperCase()}|${numero}`;
 
 export function registrar(estado, correcao) {

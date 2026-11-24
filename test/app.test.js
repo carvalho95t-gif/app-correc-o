@@ -350,3 +350,25 @@ test('prova A–D: gabarito, folha e conferência só com A a D', async () => {
   assert.match(await page.textContent('#corrigir-msg'), /nº 02 \(3A\) salva/);
   await ctx.close();
 });
+
+test('áreas: recusa sobreposição e salva duas áreas', async () => {
+  const { ctx, page } = await abrirApp();
+  await criarProva(page);
+  const area = async (k, nome, de, ate) => {
+    await page.click('#adicionar-area');
+    await page.fill(`#areas [data-area="${k}"] [name="nome"]`, nome);
+    await page.fill(`#areas [data-area="${k}"] [name="de"]`, String(de));
+    await page.fill(`#areas [data-area="${k}"] [name="ate"]`, String(ate));
+  };
+  await area(0, 'Linguagens', 1, 5);
+  await area(1, 'Matemática', 5, 10);
+  await page.click('#salvar-prova');
+  assert.match(await page.textContent('#prova-msg'), /se sobrepõem/);
+  await page.fill('#areas [data-area="1"] [name="de"]', '6');
+  await page.click('#salvar-prova');
+  assert.match(await page.textContent('#prova-msg'), /Prova salva/);
+  await page.reload();
+  await page.click('#aba-prova');
+  assert.equal(await page.inputValue('#areas [data-area="1"] [name="nome"]'), 'Matemática');
+  await ctx.close();
+});
