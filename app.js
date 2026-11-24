@@ -5,7 +5,7 @@ import { qrSVG, textoQR, lerQR } from './src/qr.js';
 import { carregar, salvar, definirProva, arquivoInicial, ativo, comAtivo, escolher, novaProva, apagarProva, listar,
   acharPorNome, validarAreas, registrar, chave, remover, marcarExportado, definirLista, nomeDo, versaoDe } from './src/estado.js';
 import { montarPlanilha, nomeArquivo, porTurma, notaDe, lerPlanilha, temParciais, lerConceitos, conceitoDe, posicoes, analiseDaProva, listaDeLinhas, gabaritoDeLinhas } from './src/planilha.js';
-import { paraCinza, lerFolha, homografia, aplicar, acharMarcadores, quadroPronto, razaoDe } from './src/leitor.js';
+import { paraCinza, lerFolha, homografia, aplicar, acharMarcadores, quadroPronto, razaoDe, poucaLuz } from './src/leitor.js';
 import { codificar } from './src/codigo.js';
 import { cadernoHTML, estiloDePagina } from './src/caderno.js';
 import { ehEmbaralhada, cadernoDaVersao } from './src/embaralhar.js';
@@ -602,7 +602,8 @@ async function abrirCamera() {
     let m = null;
     for (const r of RAZOES) if ((m = acharMarcadores(c, r))) break;
     camera.historico = [...camera.historico.slice(-2), m];
-    $('#camera-status').textContent = m ? 'Achei a folha. Segure parado…' : 'Procurando os 4 quadrados pretos…';
+    $('#camera-status').textContent = m ? 'Achei a folha. Segure parado…'
+      : poucaLuz(c) ? 'Pouca luz: acenda a luz da sala ou chegue perto de uma janela.' : 'Procurando os 4 quadrados pretos…';
     if (quadroPronto(camera.historico, pequeno.width)) capturar(video);
   }, 250);
 }

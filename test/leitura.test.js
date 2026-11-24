@@ -143,3 +143,10 @@ test('quadro pronto: folha mexendo ou marcadores perdidos não capturam', () => 
   const parada = quadro({ rotacaoGraus: 2 });
   assert.equal(quadroPronto([parada, null, parada], 480), false);
 });
+
+// ---------- plano: aviso de pouca luz na câmera ----------
+import { poucaLuz } from '../src/leitor.js';
+test('pouca luz: imagem escura avisa, folha bem iluminada não', () => {
+  assert.equal(poucaLuz({ data: new Uint8Array(10000).fill(40) }), true);
+  assert.equal(poucaLuz(gerarFoto(layout, { numero: '05', respostas })), false);
+});

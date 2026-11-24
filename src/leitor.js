@@ -176,3 +176,10 @@ export function lerFolha(cinza, layout) {
   const m = acharMarcadores(cinza, razaoDe(layout));
   return m && lerComMarcadores(cinza, layout, m);
 }
+
+// Câmera ao vivo: aviso quando a imagem está escura demais para ler as bolinhas.
+export function poucaLuz({ data }) {
+  let soma = 0;
+  for (let i = 0; i < data.length; i += 7) soma += data[i];
+  return soma / Math.ceil(data.length / 7) < 70;
+}
