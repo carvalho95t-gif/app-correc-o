@@ -445,3 +445,46 @@ test('câmera ao vivo: captura sozinha, abre a conferência e volta para a câme
     assert.deepEqual(erros, []);
   } finally { await fechar(); }
 });
+
+// ---------- novas funções 06: caderno de prova ----------
+test('caderno: digitar 3 questões, gabarito sai do caderno e a impressão traz as questões e a folha', async () => {
+  const { ctx, page } = await abrirApp();
+  await page.click('#aba-prova');
+  await page.fill('#prova-nome', 'Caderno 1');
+  await page.fill('#prova-num', '3');
+  await page.dispatchEvent('#prova-num', 'change');
+  await page.click('#caderno-editor summary');
+  for (const [i, certa] of ['B', 'E', 'A'].entries()) {
+    await page.fill(`#caderno-questoes [data-cq="${i}"] textarea`, `Enunciado da questão ${i + 1} <b>`);
+    for (const a of 'ABCDE') await page.fill(`#caderno-questoes [data-cq="${i}"] input[data-texto="${a}"]`, `opção ${a}${i + 1}`);
+    await page.check(`#caderno-questoes [data-cq="${i}"] input[type=radio][value="${certa}"]`);
+  }
+  assert.equal(await page.getAttribute('#gabarito button[data-q="1"][data-alt="E"]', 'aria-pressed'), 'true');
+  await page.click('#salvar-prova');
+  assert.match(await page.textContent('#prova-msg'), /Prova salva/);
+  await page.click('#aba-folha');
+  const texto = await page.textContent('#caderno');
+  assert.match(texto, /Caderno 1/);
+  assert.match(texto, /1\..*Enunciado da questão 1 <b>/s);
+  assert.match(texto, /B\).*opção B1/s);
+  assert.match(await page.innerHTML('#caderno'), /questão 1 &lt;b&gt;/); // texto digitado não vira HTML
+  assert.ok(await page.isVisible('#imprimir-caderno'));
+  assert.equal(await page.locator('#folha svg').count(), 1);
+  await ctx.close();
+});
+
+test('impressão: folha em 1 página e caderno curto + folha em 2 páginas', async () => {
+  const paginas = pdf => (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+  const { ctx, page } = await abrirApp();
+  await criarProva(page, { gabarito: 'ABCDE' });
+  await page.click('#aba-folha');
+  assert.equal(paginas(await page.pdf({ preferCSSPageSize: true })), 1);
+  await page.click('#aba-prova');
+  await page.click('#caderno-editor summary');
+  for (let i = 0; i < 5; i++) await page.fill(`#caderno-questoes [data-cq="${i}"] textarea`, 'Texto '.repeat(40));
+  await page.click('#salvar-prova');
+  await page.click('#aba-folha');
+  await page.evaluate(() => { document.querySelector('#folha').before(document.querySelector('#caderno')); document.body.classList.add('com-caderno'); });
+  assert.equal(paginas(await page.pdf({ preferCSSPageSize: true })), 2);
+  await ctx.close();
+});

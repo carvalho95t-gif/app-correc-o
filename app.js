@@ -7,6 +7,7 @@ import { montarPlanilha, nomeArquivo, porTurma, notaDe, lerPlanilha } from './sr
 import { paraCinza, lerFolha, homografia, aplicar, acharMarcadores, quadroPronto } from './src/leitor.js';
 import { corrigir } from './src/nota.js';
 import { codificar } from './src/codigo.js';
+import { cadernoHTML } from './src/caderno.js';
 
 const $ = s => document.querySelector(s);
 const letras = p => [...(p.alternativas ?? 'ABCDE')];
@@ -75,6 +76,7 @@ function renderProva() {
   const { gabarito, anuladas } = rascunho.versoes[editando];
   $('#prova-valor').value = rascunho.valor;
   $('#pesos-resumo').textContent = resumoPesos(rascunho.pesos ?? []);
+  renderCadernoEditor();
   $('#areas').innerHTML = (rascunho.areas ?? []).map((a, k) => `
     <div class="pesos" data-area="${k}">
       <label>Área <input name="nome" value="${esc(a.nome)}" autocomplete="off"></label>
@@ -89,6 +91,37 @@ function renderProva() {
       <label><input type="checkbox" data-anular="${i}" ${anuladas.includes(i) ? 'checked' : ''}> Anular</label>
     </div>`).join('');
 }
+// O caderno tem uma questão por questão da prova; o gabarito da versão A é a alternativa certa.
+const questaoVazia = () => ({ enunciado: '', alternativas: [] });
+function ajustarCaderno() {
+  const n = numQuestoes(rascunho), qs = rascunho.caderno?.questoes ?? [];
+  rascunho.caderno = { ...rascunho.caderno, questoes: Array.from({ length: n }, (_, i) => qs[i] ?? questaoVazia()) };
+}
+function renderCadernoEditor() {
+  ajustarCaderno();
+  const g = rascunho.versoes[0].gabarito;
+  $('#caderno-questoes').innerHTML = rascunho.caderno.questoes.map((q, i) => `
+    <div class="cq" data-cq="${i}">
+      <label>Questão ${i + 1}<textarea rows="3" data-campo="enunciado">${esc(q.enunciado)}</textarea></label>
+      ${letras(rascunho).map((a, j) => `<div class="alt">
+        <input type="radio" name="certa-${i}" value="${a}" ${g[i] === a ? 'checked' : ''} aria-label="Questão ${i + 1}: ${a} é a certa">
+        <b>${a})</b><input type="text" data-texto="${a}" value="${esc(q.alternativas[j] ?? '')}" aria-label="Questão ${i + 1}, texto da alternativa ${a}">
+      </div>`).join('')}
+    </div>`).join('');
+}
+$('#caderno-questoes').addEventListener('input', e => {
+  const i = +e.target.closest('[data-cq]').dataset.cq, q = rascunho.caderno.questoes[i];
+  if (e.target.dataset.campo === 'enunciado') q.enunciado = e.target.value;
+  else if (e.target.dataset.texto) q.alternativas[letras(rascunho).indexOf(e.target.dataset.texto)] = e.target.value;
+});
+$('#caderno-questoes').addEventListener('change', e => {
+  if (e.target.type !== 'radio') return;
+  const i = +e.target.closest('[data-cq]').dataset.cq;
+  rascunho.versoes[0].gabarito[i] = e.target.value;
+  document.querySelectorAll(`#gabarito button[data-q="${i}"]`).forEach(b => b.setAttribute('aria-pressed', b.dataset.alt === e.target.value));
+});
+const temCaderno = p => !!p.caderno?.questoes.some(q => q.enunciado.trim());
+
 // "Questões 1 a 5 valem 2; as outras valem 1."
 function resumoPesos(pesos) {
   const grupos = [];
@@ -218,7 +251,7 @@ $('#salvar-prova').addEventListener('click', () => {
   const problema = validarAreas(areas, numQuestoes(rascunho));
   if (problema) { msg.textContent = problema; return; }
   try {
-    persistir(definirProva(estado, { codigo: estado.prova?.codigo ?? novoCodigo(), ...(areas.length ? { areas } : {}), nome: rascunho.nome.trim(), valor, ...((rascunho.alternativas ?? 'ABCDE') !== 'ABCDE' ? { alternativas: rascunho.alternativas } : {}), ...(rascunho.pesos?.some(p => p !== 1) ? { pesos: [...rascunho.pesos] } : {}),
+    persistir(definirProva(estado, { codigo: estado.prova?.codigo ?? novoCodigo(), ...(temCaderno(rascunho) ? { caderno: structuredClone(rascunho.caderno) } : {}), ...(areas.length ? { areas } : {}), nome: rascunho.nome.trim(), valor, ...((rascunho.alternativas ?? 'ABCDE') !== 'ABCDE' ? { alternativas: rascunho.alternativas } : {}), ...(rascunho.pesos?.some(p => p !== 1) ? { pesos: [...rascunho.pesos] } : {}),
       versoes: rascunho.versoes.map(v => ({ gabarito: v.gabarito.map(g => g || letras(rascunho)[0]), anuladas: [...v.anuladas] })) }));
     msg.textContent = 'Prova salva. Agora imprima a folha na aba Folha.';
   } catch (err) { msg.textContent = err.message; }
@@ -244,10 +277,19 @@ function renderFolha() {
   const svg = folhaSVG(layoutDa(estado.prova), p.nome, codificar(estado.prova.codigo, null));
   $('#folha').innerHTML = duas ? svg + svg : svg;
   $('#folha').classList.toggle('duas', duas);
+  const comCaderno = temCaderno(estado.prova);
+  $('#imprimir-caderno').hidden = !comCaderno;
+  $('#caderno').innerHTML = comCaderno ? cadernoHTML(estado.prova) : '';
   $('#pagina').textContent = `@page { size: A4 ${duas ? 'landscape' : 'portrait'}; margin: 0; }`;
 }
 $('#duas-por-pagina').addEventListener('change', renderFolha);
-$('#imprimir').addEventListener('click', () => window.print());
+$('#imprimir').addEventListener('click', () => { document.body.classList.remove('com-caderno'); window.print(); });
+// O caderno vem antes da folha: a ordem na tela de impressão segue a ordem no HTML.
+$('#imprimir-caderno').addEventListener('click', () => {
+  $('#folha').before($('#caderno'));
+  document.body.classList.add('com-caderno'); window.print();
+  $('#caderno').before($('#folha'));
+});
 
 // ---------- corrigir ----------
 function renderCorrigir() {

@@ -4,7 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Seam Planilha: restaurar traz o caderno
 - [ ] Seam App: criar um caderno de 3 questões, ver o gabarito preenchido e a página de impressão com as questões e a folha

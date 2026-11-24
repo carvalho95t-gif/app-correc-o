@@ -250,3 +250,9 @@ test('área: recusa sobreposição e intervalo além da última questão; restau
   const wb = releitura(montarPlanilha(XLSX, estadoExemplo({ areas })));
   assert.deepEqual(lerPlanilha(XLSX, wb).prova.areas, areas);
 });
+
+test('restaurar traz o caderno', () => {
+  const caderno = { questoes: ['Q1', 'Q2', 'Q3', 'Q4'].map(t => ({ enunciado: t, alternativas: ['a', 'b', 'c', 'd', 'e'] })) };
+  const wb = releitura(montarPlanilha(XLSX, estadoExemplo({ caderno })));
+  assert.deepEqual(lerPlanilha(XLSX, wb).prova.caderno, caderno);
+});

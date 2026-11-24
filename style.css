@@ -39,11 +39,13 @@ nav button { border: 0; border-radius: 0; min-height: 56px; }
 nav button[aria-current=page] { color: var(--azul); font-weight: 700; box-shadow: inset 0 3px 0 var(--azul); }
 dialog { border: 0; border-radius: 12px; max-width: 360px; }
 @media print {
-  header, nav, main > section > *:not(#folha-pronta), #folha-pronta > *:not(#folha), dialog { display: none !important; }
+  header, nav, main > section > *:not(#folha-pronta), #folha-pronta > *:not(#folha):not(#caderno), dialog { display: none !important; }
+  body:not(.com-caderno) #caderno { display: none !important; }
+  .caderno-pagina { break-after: page; box-shadow: none; margin: 0; }
   body, main { padding: 0; margin: 0; background: white; }
   #tela-folha { display: block !important; }
   main > section:not(#tela-folha) { display: none !important; }
-  #folha svg { width: 210mm; height: 297mm; border: 0; margin: 0; }
+  #folha svg { display: block; width: 210mm; height: 297mm; border: 0; margin: 0; }
   #folha.duas { display: flex; width: 297mm; height: 210mm; }
   #folha.duas svg { width: 148.5mm; height: 210mm; }
 }
@@ -60,3 +62,13 @@ select#prova-versoes, select#versao { width: 100%; font-size: 1rem; min-height: 
 .pesos { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
 .pesos input { width: 4.5em; }
 #video { width: 100%; border-radius: 8px; background: #111827; }
+details#caderno-editor { margin: 16px 0; background: white; padding: 8px 12px; border-radius: 8px; border: 1px solid #e5e7eb; }
+.cq { border-top: 1px solid #e5e7eb; padding: 8px 0; }
+.cq .alt { display: flex; gap: 6px; align-items: center; margin: 4px 0; }
+.cq .alt input[type=text] { flex: 1; }
+#caderno .caderno-pagina { background: white; padding: 16mm; margin: 12px 0; font-family: Arial, sans-serif; font-size: 11pt; box-shadow: 0 1px 4px #0002; }
+.caderno-pagina h1 { font-size: 14pt; margin: 0 0 6px; }
+.caderno-pagina ol.questoes { list-style: none; padding: 0; columns: 2; column-gap: 8mm; }
+.caderno-pagina .questao { break-inside: avoid; margin-bottom: 10px; }
+.caderno-pagina ol.alternativas { list-style: none; padding-left: 0; margin: 4px 0; }
+.caderno-pagina img { max-width: 100%; }

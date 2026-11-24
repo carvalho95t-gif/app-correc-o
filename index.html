@@ -46,6 +46,11 @@
       <div id="versoes-gabarito" class="acoes" hidden></div>
       <p class="dica">Toque na alternativa certa de cada questão. "Anular" conta a questão como certa para todos.</p>
       <div id="gabarito"></div>
+      <details id="caderno-editor">
+        <summary>Caderno de prova (opcional)</summary>
+        <p class="dica">Digite ou cole cada questão e marque a alternativa certa: o gabarito acima se preenche sozinho. O app imprime o caderno junto com a folha.</p>
+        <div id="caderno-questoes"></div>
+      </details>
       <h3>Pesos</h3>
       <p class="dica">Toda questão vale 1. Para uma questão valer mais, aplique um peso a ela.</p>
       <div class="pesos">
@@ -70,7 +75,9 @@
         <p class="dica">Imprima e tire cópias. A mesma folha serve para todos os alunos e todas as turmas.</p>
         <label id="opcao-duas" class="opcao"><input type="checkbox" id="duas-por-pagina"> Duas folhas por página (corte a folha ao meio)</label>
         <button id="imprimir" class="primario">Imprimir folha</button>
+        <button id="imprimir-caderno" hidden>Imprimir caderno e folha</button>
         <div id="folha"></div>
+        <div id="caderno"></div>
       </div>
     </section>
     <section id="tela-corrigir" aria-labelledby="t-corrigir" hidden>
