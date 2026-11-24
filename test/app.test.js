@@ -518,6 +518,7 @@ test('prova impressa: cabeçalho, identificação, instruções e questão no mo
     await page.fill(`#caderno-questoes [data-cq="${i}"] textarea[data-campo="enunciado"]`, `Texto-base ${i + 1}`);
     await page.check(`#caderno-questoes [data-cq="${i}"] input[type=radio][value="A"]`);
   }
+  await page.click('#caderno-questoes [data-cq="0"] .fonte-comando summary');
   await page.fill('#caderno-questoes [data-cq="0"] input[data-campo="fonte"]', 'Texto elaborado a partir de Montaigne.');
   await page.fill('#caderno-questoes [data-cq="0"] textarea[data-campo="comando"]', 'Montaigne sugere que:');
   await page.click('#salvar-prova');

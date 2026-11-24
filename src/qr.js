@@ -31,6 +31,7 @@ const carregarJsQR = () => (jsQR ??= new Promise(ok => {
 
 // imagem: ImageData (RGBA). Devolve {prova, versao} ou null.
 export async function lerQR(imagem) {
+  if (!imagem) return null;
   try {
     if (globalThis.BarcodeDetector && (await BarcodeDetector.getSupportedFormats()).includes('qr_code')) {
       for (const r of await new BarcodeDetector({ formats: ['qr_code'] }).detect(imagem)) {

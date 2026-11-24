@@ -37,7 +37,8 @@ const layoutDa = p => montarLayout(numQuestoes(p), ehEmbaralhada(p) ? 1 : p.vers
 // Quadro do gabarito na página 1 (provas com caderno de até 30 questões). Os marcadores ficam no mesmo
 // lugar com qualquer número de questões, então o QR de outra prova é lido com o quadro desta.
 const quadroDa = p => montarQuadro(Math.min(numQuestoes(p), MAX_QUADRO), p.alternativas);
-const cabeNoQuadro = p => numQuestoes(p) <= MAX_QUADRO;
+// Versões sem embaralhar usam bolinhas de versão, que o quadro não tem: essas provas ficam com a folha.
+const cabeNoQuadro = p => numQuestoes(p) <= MAX_QUADRO && (p.versoes.length === 1 || ehEmbaralhada(p));
 const RAZOES = [razaoDe(montarQuadro(1)), razaoDe(montarLayout(1))];
 
 function gravar(novoArquivo) {
@@ -127,8 +128,9 @@ function renderCadernoEditor() {
   $('#caderno-questoes').innerHTML = rascunho.caderno.questoes.map((q, i) => `
     <div class="cq" data-cq="${i}">
       <label>Questão ${i + 1}: texto-base<textarea rows="3" data-campo="enunciado">${esc(q.enunciado)}</textarea></label>
+      <details class="fonte-comando"${q.fonte || q.comando ? ' open' : ''}><summary>Fonte e comando</summary>
       <label>Fonte <input data-campo="fonte" value="${esc(q.fonte ?? '')}" placeholder="Texto elaborado a partir de..."></label>
-      <label>Comando <textarea rows="2" data-campo="comando">${esc(q.comando ?? '')}</textarea></label>
+      <label>Comando <textarea rows="2" data-campo="comando">${esc(q.comando ?? '')}</textarea></label></details>
       ${q.imagem ? `<img class="miniatura" src="${esc(resolver(imagens, q.imagem))}" alt="Imagem da questão ${i + 1}"><button data-tirar-imagem>Remover imagem</button>`
         : `<label class="botao">Adicionar imagem<input type="file" accept="image/*" class="oculto" aria-label="Imagem da questão ${i + 1}"></label>`}
       ${letras(rascunho).map((a, j) => `<div class="alt">
@@ -360,7 +362,7 @@ function renderFolha() {
     return `<div class="quadro-gabarito">${quadroSVG(l, qrSVG(textoQR(prova.codigo, v), l.qr.x, l.qr.y, l.qr.lado), `${prova.codigo}${v ? `.${v}` : ''}`)}</div>`;
   };
   $('#imprimir-caderno').textContent = quadro ? 'Imprimir prova' : 'Imprimir caderno e folha';
-  $('#aviso-quadro').hidden = !comCaderno || quadro;
+  $('#aviso-quadro').hidden = !comCaderno || numQuestoes(prova) <= MAX_QUADRO;
   // Para imprimir: cada versão com o quadro do gabarito na página 1, ou seguida da folha quando não cabe.
   $('#caderno').innerHTML = !comCaderno ? '' : (emb ? prova.versoes : [0]).map((_, k) =>
     cadernoHTML(comImagens(cadernoDaVersao(prova, k)), emb ? `Versão ${'ABCD'[k]}` : '', quadro ? quadroDe(k) : '') +
@@ -393,18 +395,20 @@ $('#foto').addEventListener('change', async e => {
 
 // Tenta o quadro do gabarito (página 1 da prova) e depois a folha avulsa. No quadro, a prova vem do QR.
 async function ler(cinza, foto, prova) {
-  const q = quadroDa(prova), lq = lerFolha(cinza, q);
-  if (!lq) { const f = layoutDa(prova); return [f, lerFolha(cinza, f)]; }
-  lq.codigo = await lerQR(recorteQR(foto, q, lq.marcadoresPx));
-  return [q, lq];
+  const quadro = quadroDa(prova), noQuadro = lerFolha(cinza, quadro);
+  if (!noQuadro) { const folha = layoutDa(prova); return [folha, lerFolha(cinza, folha)]; }
+  noQuadro.codigo = await lerQR(recorteQR(foto, quadro, noQuadro.marcadoresPx));
+  return [quadro, noQuadro];
 }
 // Só a região do QR (com folga), para o leitor achar rápido.
 function recorteQR(foto, layout, marcadoresPx) {
-  const H = homografia(layout.marcadores, marcadoresPx), { x, y, lado } = layout.qr, f = 4;
-  const ps = [[x - f, y - f], [x + lado + f, y - f], [x + lado + f, y + lado + f], [x - f, y + lado + f]].map(([a, b]) => aplicar(H, a, b));
+  const H = homografia(layout.marcadores, marcadoresPx), { x, y, lado } = layout.qr, folga = 4;
+  const ps = [[x - folga, y - folga], [x + lado + folga, y - folga], [x + lado + folga, y + lado + folga], [x - folga, y + lado + folga]].map(([a, b]) => aplicar(H, a, b));
   const x0 = Math.max(0, Math.floor(Math.min(...ps.map(p => p.x)))), y0 = Math.max(0, Math.floor(Math.min(...ps.map(p => p.y))));
   const x1 = Math.min(foto.width, Math.ceil(Math.max(...ps.map(p => p.x)))), y1 = Math.min(foto.height, Math.ceil(Math.max(...ps.map(p => p.y))));
-  const w = x1 - x0, h = y1 - y0, out = new ImageData(w, h);
+  const w = x1 - x0, h = y1 - y0;
+  if (w < 1 || h < 1) return null;
+  const out = new ImageData(w, h);
   for (let r = 0; r < h; r++) out.data.set(foto.data.subarray(4 * ((y0 + r) * foto.width + x0), 4 * ((y0 + r) * foto.width + x1)), 4 * r * w);
   return out;
 }
@@ -478,7 +482,8 @@ async function abrirCamera() {
     pequeno.width = Math.round(video.videoWidth * f); pequeno.height = Math.round(video.videoHeight * f);
     cx.drawImage(video, 0, 0, pequeno.width, pequeno.height);
     const c = paraCinza(cx.getImageData(0, 0, pequeno.width, pequeno.height));
-    const m = RAZOES.map(r => acharMarcadores(c, r)).find(Boolean) ?? null;
+    let m = null;
+    for (const r of RAZOES) if ((m = acharMarcadores(c, r))) break;
     camera.historico = [...camera.historico.slice(-2), m];
     $('#camera-status').textContent = m ? 'Achei a folha. Segure parado…' : 'Procurando os 4 quadrados pretos…';
     if (quadroPronto(camera.historico, pequeno.width)) capturar(video);

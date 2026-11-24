@@ -257,6 +257,14 @@ test('restaurar traz o caderno', () => {
   assert.deepEqual(lerPlanilha(XLSX, wb).prova.caderno, caderno);
 });
 
+test('restaurar traz o cabeçalho da prova e a fonte e o comando das questões', () => {
+  const caderno = {
+    cabecalho: { escola: 'GOVERNO\nESCOLA', titulo: 'Recuperação', subtitulo: 'Filosofia', nomeCurto: 'Rec', professor: 'Tiago', disciplina: 'Filosofia', serie: '2ª', instrucoes: 'Sem consulta.' },
+    questoes: ['Q1', 'Q2', 'Q3', 'Q4'].map(t => ({ enunciado: t, fonte: 'Montaigne', comando: 'Assinale:', alternativas: ['a', 'b', 'c', 'd', 'e'] })),
+  };
+  assert.deepEqual(lerPlanilha(XLSX, releitura(montarPlanilha(XLSX, estadoExemplo({ caderno })))).prova.caderno, caderno);
+});
+
 test('restaurar traz a imagem da questão', () => {
   const imagem = 'data:image/jpeg;base64,' + 'A'.repeat(70000); // maior que uma célula do Excel
   const caderno = { questoes: ['Q1', 'Q2', 'Q3', 'Q4'].map((t, i) => ({ enunciado: t, alternativas: [], ...(i === 1 ? { imagem } : {}) })) };

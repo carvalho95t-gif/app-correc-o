@@ -80,7 +80,16 @@ A faixa de quadradinhos no alto da folha de respostas que diz de qual prova (e d
 Uma das até 4 variações da mesma prova (A–D), cada uma com seu gabarito.
 
 **Caderno de prova**:
-As questões da prova (enunciado, imagem opcional e texto das alternativas), digitadas no app e impressas com a folha.
+As questões da prova, digitadas no app e impressas no modelo do professor. Cada questão tem texto-base (guardado no campo `enunciado`), imagem opcional, fonte, comando e o texto das alternativas.
+
+**Texto-base**:
+O texto de apoio da questão, impresso recuado. Nas provas antigas é o enunciado inteiro.
+
+**Fonte**:
+A referência do texto-base, impressa em itálico à direita.
+
+**Comando**:
+A pergunta da questão, impressa em negrito antes das alternativas.
 
 **Embaralhamento**:
 A troca da ordem das questões e/ou das alternativas nas versões B–D de um caderno. A versão A é o caderno como foi digitado; pesos, áreas e análise seguem sempre a questão original.

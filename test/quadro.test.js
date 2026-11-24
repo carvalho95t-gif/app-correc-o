@@ -19,6 +19,10 @@ async function criarCaderno(page, nome, gabarito, { versoes = 1, embaralhar = fa
     await page.check(`#caderno-questoes [data-cq="${i}"] input[type=radio][value="${certa}"]`);
   }
   if (embaralhar) await page.check('#embaralhar-alternativas');
+  else for (let v = 1; v < versoes; v++) { // versões sem embaralhar: gabarito de cada versão à mão
+    await page.click(`#versoes-gabarito button[data-versao="${'ABCD'[v]}"]`);
+    for (const [i, a] of [...gabarito].entries()) await page.click(`#gabarito button[data-q="${i}"][data-alt="${a}"]`);
+  }
   await page.click('#salvar-prova');
   assert.match(await page.textContent('#prova-msg'), /Prova salva/);
   await page.click('#aba-folha');
@@ -137,4 +141,12 @@ test('quadro do gabarito: a câmera ao vivo reconhece a página 1 e captura sozi
     assert.match(await page.textContent('#placar'), /9 de 10/);
     assert.deepEqual(erros, []);
   } finally { await fechar(); }
+});
+
+test('versões sem embaralhar: a folha separada continua, porque o quadro não tem bolinhas de versão', async () => {
+  const { ctx, page } = await abrirApp();
+  await criarCaderno(page, 'Duas versões', 'ABCDE', { versoes: 2 });
+  assert.equal(await page.locator('#caderno svg.quadro').count(), 0);
+  assert.equal(await page.locator('#caderno .folha-impressa').count(), 1);
+  await ctx.close();
 });

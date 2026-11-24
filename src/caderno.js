@@ -1,3 +1,4 @@
+import { MAX_QUADRO } from './layout.js';
 // Prova impressa no modelo do professor: página 1 com cabeçalho, identificação e instruções; depois as questões.
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const texto = s => esc(s).replace(/\n/g, '<br>');
@@ -17,8 +18,8 @@ export function instrucoes(prova) {
     `A prova contém ${n} ${n === 1 ? 'questão objetiva' : 'questões objetivas'}. Cada questão apresenta ${letras.length} alternativas (${letras.length === 2 ? `${letras[0]} ou ${letras[1]}` : `de ${letras[0]} até ${letras.at(-1)}`}) e somente uma está correta.`,
     iguais ? `Cada questão vale ${num(pts[0])} ${pts[0] === 1 ? 'ponto' : 'pontos'}, totalizando ${num(valor)} pontos.`
       : `O valor de cada questão está ao lado do seu número, totalizando ${num(valor)} pontos.`,
-    'Leia com atenção o texto-base e o enunciado antes de responder.',
-    `Marque suas respostas ${n <= 30 ? 'no quadro do gabarito' : 'na folha de respostas'}, preenchendo completamente a região da alternativa escolhida, com caneta azul ou preta. Não use corretivo; respostas rasuradas ou com mais de uma marcação serão anuladas.`,
+    'Leia com atenção o texto-base e o comando de cada questão antes de responder.',
+    `Marque suas respostas ${n <= MAX_QUADRO ? 'no quadro do gabarito' : 'na folha de respostas'}, preenchendo completamente a região da alternativa escolhida, com caneta azul ou preta. Não use corretivo; respostas rasuradas ou com mais de uma marcação serão anuladas.`,
     ...String(prova.caderno.cabecalho?.instrucoes ?? '').split('\n').map(l => l.trim()).filter(Boolean),
   ];
 }
