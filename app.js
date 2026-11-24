@@ -265,6 +265,15 @@ $('#nova-prova').addEventListener('click', () => {
   rascunho = provaEmBranco(); $('#prova-msg').textContent = '';
   renderProva();
 });
+// Duplicar: a prova salva vira o rascunho de uma prova nova, sem correções e com outro código.
+$('#duplicar-prova').addEventListener('click', () => {
+  if (!estado.prova) { $('#prova-msg').textContent = 'Salve a prova antes de duplicar.'; return; }
+  const { codigo, ...copia } = structuredClone(estado.prova);
+  gravar(novaProva(arquivo)); editando = 0;
+  rascunho = { ...copia, nome: `${copia.nome} (cópia)` };
+  renderProva();
+  $('#prova-msg').textContent = 'Cópia pronta, sem correções. Mude o que quiser e toque em Salvar prova.';
+});
 $('#apagar-prova').addEventListener('click', async () => {
   if (arquivo.ativa) {
     const nome = estado.prova.nome;
@@ -272,7 +281,9 @@ $('#apagar-prova').addEventListener('click', async () => {
       ? `Apagar a prova "${nome}" e todas as correções dela? Há correções que ainda não estão na planilha, e elas serão perdidas.`
       : `Apagar a prova "${nome}" e todas as correções dela?`, 'Apagar prova', 'Manter');
     if (!ok) return;
-    apagarImagens(refsDe(estado.prova)).catch(() => {});
+    // Imagens usadas por outra prova (cópia feita com "Duplicar") ficam.
+    const outras = new Set(Object.entries(arquivo.provas).filter(([id]) => id !== arquivo.ativa).flatMap(([, e]) => refsDe(e.prova)));
+    apagarImagens(refsDe(estado.prova).filter(r => !outras.has(r))).catch(() => {});
     gravar(apagarProva(arquivo, arquivo.ativa));
   }
   rascunho = provaEmBranco(); $('#prova-msg').textContent = '';

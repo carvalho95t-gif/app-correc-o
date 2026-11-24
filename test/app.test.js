@@ -788,3 +788,23 @@ test('lista da turma e gabarito trazidos de arquivos CSV', async () => {
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+// ---------- plano: duplicar prova ----------
+test('duplicar prova: cópia com o mesmo gabarito, outro nome e sem correções', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await criarProva(page, { nome: 'Original', gabarito: 'EDCBAEDCBA' });
+  await fotografarECorrigir(page, '2A', '01', [...'EDCBAEDCBA']); await page.click('#salvar-leitura');
+  await page.click('#aba-prova');
+  await page.click('#duplicar-prova');
+  assert.equal(await page.inputValue('#prova-nome'), 'Original (cópia)');
+  assert.equal(await page.getAttribute('#gabarito button[data-q="0"][data-alt="E"]', 'aria-pressed'), 'true');
+  await page.click('#salvar-prova');
+  assert.match(await page.textContent('#prova-msg'), /Prova salva/);
+  const provas = await page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('correcao-v3')).provas));
+  assert.equal(provas.length, 2);
+  const copia = provas.find(e => e.prova.nome === 'Original (cópia)'), original = provas.find(e => e.prova.nome === 'Original');
+  assert.deepEqual(Object.keys(copia.correcoes), []);
+  assert.notEqual(copia.prova.codigo, original.prova.codigo);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
