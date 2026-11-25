@@ -687,11 +687,35 @@ async function abrirCamera() {
     let m = null;
     for (const r of RAZOES) if ((m = acharMarcadores(c, r))) break;
     camera.historico = [...camera.historico.slice(-2), m];
+    desenharMarcas(video, m && m.map(p => ({ x: p.x / f, y: p.y / f })));
     $('#camera-status').textContent = m ? 'Achei a folha. Segure parado…'
       : poucaLuz(c) ? 'Pouca luz: acenda a luz da sala ou chegue perto de uma janela.'
       : reflexo(c) ? 'Reflexo de luz na folha: incline um pouco o celular ou mude a folha de lugar.' : 'Procurando os 4 quadrados pretos…';
     if (quadroPronto(camera.historico, pequeno.width)) capturar(video);
   }, 250);
+}
+// Visor: moldura guia enquanto procura; os 4 quadrados em verde quando acha a folha.
+function desenharMarcas(video, marcas) {
+  const cv = $('#camera-marcas'), d = devicePixelRatio || 1;
+  cv.width = cv.clientWidth * d; cv.height = cv.clientHeight * d;
+  const s = Math.min(cv.width / video.videoWidth, cv.height / video.videoHeight); // vídeo em "contain"
+  const ox = (cv.width - video.videoWidth * s) / 2, oy = (cv.height - video.videoHeight * s) / 2;
+  const ctx = cv.getContext('2d');
+  ctx.lineWidth = 4 * d; ctx.lineJoin = 'round';
+  if (!marcas) {
+    // Cantos de um retângulo na proporção da folha A4, onde a folha deve caber.
+    const vw = video.videoWidth * s, vh = video.videoHeight * s; // dentro da imagem da câmera
+    const h = Math.min(vh * 0.9, vw * 0.9 * 1.414), w = h / 1.414, x = (cv.width - w) / 2, y = (cv.height - h) / 2, c = 0.12 * w;
+    ctx.strokeStyle = 'rgba(241, 240, 243, .85)';
+    for (const [px, py, sx, sy] of [[x, y, 1, 1], [x + w, y, -1, 1], [x + w, y + h, -1, -1], [x, y + h, 1, -1]]) {
+      ctx.beginPath(); ctx.moveTo(px, py + sy * c); ctx.lineTo(px, py); ctx.lineTo(px + sx * c, py); ctx.stroke();
+    }
+    return;
+  }
+  const pts = marcas.map(p => [ox + p.x * s, oy + p.y * s]);
+  ctx.strokeStyle = ctx.fillStyle = '#8dd3a6';
+  ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); ctx.stroke();
+  for (const [x, y] of pts) { ctx.beginPath(); ctx.arc(x, y, 10 * d, 0, 2 * Math.PI); ctx.fill(); }
 }
 function fecharCamera() {
   if (!camera) return;
@@ -713,10 +737,13 @@ async function capturar(video) {
   cv.getContext('2d').drawImage(video, 0, 0, w, h);
   fecharCamera(); avisarCaptura();
   await lerImagem(cv, w, h);
-  if (!leitura && modoCamera) abrirCamera(); // leitura falhou: a mensagem fica e a câmera volta
+  if (!leitura && modoCamera) { // leitura falhou: a câmera volta mostrando o motivo
+    $('#camera-salvo').textContent = $('#erro-leitura').textContent; $('#camera-salvo').dataset.tipo = 'erro';
+    abrirCamera();
+  }
 }
 $('#abrir-camera').addEventListener('click', abrirCamera);
-$('#fechar-camera').addEventListener('click', () => { modoCamera = false; fecharCamera(); });
+$('#fechar-camera').addEventListener('click', () => { modoCamera = false; fecharCamera(); $('#camera-salvo').textContent = ''; });
 
 function mostrarErro(msg) {
   $('#erro-leitura').textContent = msg; $('#erro-leitura').hidden = false;
@@ -796,6 +823,7 @@ $('#salvar-leitura').addEventListener('click', async () => {
   if (estado.correcoes[chave(turma, numero)] &&
       !(await perguntar(`O nº ${numero} da turma ${turma} já foi corrigido. Trocar pela correção nova?`, 'Trocar pela nova', 'Manter a anterior'))) return;
   persistir(registrar(estado, { turma, numero, versao: $('#versao').value, respostas: [...leitura.valores], editado: leitura.valores.some((v, i) => v !== leitura.original[i]) }));
+  $('#camera-salvo').textContent = `Nº ${numero} salvo: ${$('#placar').textContent}`; delete $('#camera-salvo').dataset.tipo;
   $('#conferencia').hidden = true; leitura = null;
   $('#corrigir-msg').textContent = `Correção do nº ${numero} (${turma}) salva. ${modoCamera ? 'Aponte para a próxima folha.' : fila.length ? '' : 'Fotografe a próxima folha.'}`;
   if (modoCamera) abrirCamera(); else proximaDaFila();
@@ -908,6 +936,15 @@ $('#baixar').addEventListener('click', () => {
   persistir(marcarExportado(estado));
 });
 
+// Instalar como app: o Chrome do Android avisa quando pode; o botão aparece só então.
+let pedidoInstalar = null;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); pedidoInstalar = e; $('#instalar').hidden = false; });
+addEventListener('appinstalled', () => { pedidoInstalar = null; $('#instalar').hidden = true; });
+$('#instalar').addEventListener('click', async () => {
+  if (!pedidoInstalar) return;
+  pedidoInstalar.prompt(); await pedidoInstalar.userChoice.catch(() => {});
+  pedidoInstalar = null; $('#instalar').hidden = true;
+});
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { /* segue funcionando online */ });
 
 gravar(arquivo);

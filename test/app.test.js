@@ -996,3 +996,43 @@ test('o botão de tema troca entre claro e escuro e lembra a escolha', async () 
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+// ---------- leitor no celular ----------
+test('leitor no celular: câmera em tela cheia e nota do aluno salvo na própria câmera', async () => {
+  const a = await abrirApp();
+  await criarProva(a.page);
+  const png = await fotografarFolha(a.page, '12', [...'ABCDEABCDA']);
+  await a.ctx.close();
+  const dir = await mkdtemp(join(tmpdir(), 'camera-'));
+  await writeFile(join(dir, 'folha.png'), png);
+  execFileSync('ffmpeg', ['-loglevel', 'error', '-loop', '1', '-i', join(dir, 'folha.png'), '-t', '2', '-r', '10',
+    '-vf', 'scale=600:-2,pad=720:1080:(ow-iw)/2:(oh-ih)/2:gray', '-pix_fmt', 'yuv420p', join(dir, 'folha.y4m')]);
+  const { page, erros, fechar } = await abrirAppComCamera(join(dir, 'folha.y4m'));
+  try {
+    await criarProva(page);
+    await page.click('#aba-corrigir');
+    await page.fill('#turma', '2A');
+    await page.click('#abrir-camera');
+    await page.waitForSelector('#conferencia:not([hidden])');
+    await page.click('#salvar-leitura');
+    await page.waitForSelector('#camera:not([hidden])');
+    assert.deepEqual(await page.$eval('#camera', e => { const r = e.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; }), [0, 0, 390, 844]);
+    assert.match(await page.textContent('#camera-salvo'), /Nº 12 salvo: 9 de 10/);
+    assert.deepEqual(erros, []);
+  } finally { await fechar(); }
+});
+
+test('leitor no celular: o app pode ser instalado, com ícones que funcionam sem internet', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  const manifesto = await page.evaluate(async () => (await fetch(document.querySelector('link[rel=manifest]').href)).json());
+  for (const tamanho of ['192x192', '512x512']) {
+    const icone = manifesto.icons.find(i => i.sizes === tamanho && i.type === 'image/png');
+    assert.ok(icone, `falta ícone ${tamanho}`);
+    const lado = await page.evaluate(async src => { const b = await createImageBitmap(await (await fetch(src)).blob()); return [b.width, b.height]; }, icone.src);
+    assert.deepEqual(lado, tamanho.split('x').map(Number));
+    assert.match(await readFile(join(import.meta.dirname, '..', 'sw.js'), 'utf8'), new RegExp(icone.src.replace(/^\.\//, '')));
+  }
+  assert.equal(manifesto.display, 'standalone');
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
