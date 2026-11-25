@@ -9,7 +9,7 @@ const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 export const XLSX = require('../vendor/xlsx.mini.min.js');
 const raiz = new URL('..', import.meta.url).pathname;
-const tipos = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.webmanifest': 'application/manifest+json', '.json': 'application/json' };
+const tipos = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.webmanifest': 'application/manifest+json', '.json': 'application/json', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
 
 let servidor, url, browser;
 before(async () => {

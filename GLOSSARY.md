@@ -129,3 +129,21 @@ Questões guardadas neste aparelho (com disciplina e assunto) para usar em outra
 
 **Relatório da turma**:
 Planilha com a nota de cada aluno da turma em todas as provas do aparelho, a soma e a média de 0 a 10 (soma ÷ soma dos valores × 10).
+
+**Elenco**:
+Os personagens que comentam a correção: Prof.ª Neide, Coordenador Valdir, Kevin do fundão e Dona Merenda. Cada um tem 4 caras: tédio, deboche, susto, alegria (nos arquivos: tedio, bravo, susto, feliz).
+_Avoid_: Mascote, avatar
+
+**Fala**:
+O que um personagem do elenco diz em um momento da correção, sem citar nome nem número de aluno.
+_Avoid_: Piada, mensagem
+
+**Nível de deboche**:
+Desligado, Leve ou Raiz. Desligado esconde o elenco e as falas e deixa só os números.
+_Avoid_: Modo humor
+
+**Termômetro da nota**:
+Alunos da turma em 5 faixas de nota na escala de 10 (9–10, 7–8, 5–6, 3–4, 0–2). Diferente da distribuição da Análise, que usa 10 faixas de 1 ponto.
+
+**Café da Prof.ª Neide**:
+Quanto falta corrigir da pilha de uma turma que tem lista de chamada.
