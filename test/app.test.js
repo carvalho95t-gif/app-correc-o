@@ -996,3 +996,31 @@ test('o botão de tema troca entre claro e escuro e lembra a escolha', async () 
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+test('elenco comenta a correção e some com o deboche desligado', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await criarProva(page);
+  await page.click('#gabarito [data-anular="6"]');
+  assert.match(await page.textContent('#fala-anulada'), /Coordenador Valdir.*questão 7 foi anulada/s);
+  await page.click('#salvar-prova');
+  await page.click('#aba-resultados');
+  await page.click('#lista summary');
+  await page.fill('#lista-turma', '2A');
+  await page.fill('#lista-nomes', 'Ana\nBruno\nCarla\nDavi');
+  await page.click('#salvar-lista');
+  await fotografarECorrigir(page, '2A', '01', [...'ABCCCABCDE']); // 8 de 10 (Q7 anulada conta)
+  assert.match(await page.textContent('#fala-leitura'), /Kevin do fundão/);
+  assert.equal(await page.locator('#fala-leitura img').evaluate(i => i.complete && i.naturalWidth > 0), true);
+  await page.click('#salvar-leitura');
+  assert.match(await page.textContent('#cafe'), /Café da Prof.ª Neide: 75%.*Faltam 3 provas/s);
+  await page.click('#aba-resultados');
+  assert.match(await page.textContent('.termometro'), /7–8: Mandou bem.*1/s);
+  assert.match(await page.textContent('#resultados'), /Prof.ª Neide.*Q4: só 0% acertaram/s);
+  await page.click('#aba-corrigir');
+  await page.click('#deboche label:has([value=desligado])');
+  assert.ok(await page.isHidden('#cafe'));
+  await page.click('#aba-resultados');
+  assert.equal(await page.locator('#resultados .fala, .termometro').count(), 0);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
