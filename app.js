@@ -10,7 +10,7 @@ import { codificar } from './src/codigo.js';
 import { cadernoHTML, estiloDePagina } from './src/caderno.js';
 import { ehEmbaralhada, cadernoDaVersao } from './src/embaralhar.js';
 import { lerDocx } from './src/docx.js';
-import { faixas, falaDaFaixa, falaDaLeitura, falaDaQuestaoDificil, falaDaAnulada, cafe, NOMES, NIVEIS } from './src/piadas.js';
+import { faixas, falaDaFaixa, falaDaLeitura, falaDaQuestaoDificil, falaDaAnulada, falaDoCafe, cafe, NOMES, NIVEIS } from './src/piadas.js';
 import { carregarImagens, guardarImagem, apagarImagens, ehRef, resolver, reduzir } from './src/imagens.js';
 
 const $ = s => document.querySelector(s);
@@ -556,16 +556,17 @@ function renderCorrigir() {
   for (const r of document.querySelectorAll('[name=deboche]')) r.checked = r.value === nivel();
   renderCafe();
 }
-// Café da Neide: quanto falta da pilha, quando a turma tem lista de chamada.
+// Café da Neide: quanto falta da pilha da turma, quando ela tem lista de chamada. Desligado mostra só a conta.
 function renderCafe() {
-  const t = $('#turma').value.trim().toUpperCase();
-  const total = Object.keys(estado.chamadas?.[t] ?? {}).length;
-  const corrigidas = Object.values(estado.correcoes ?? {}).filter(c => c.turma === t).length;
-  const c = estado.prova && nivel() !== 'desligado' ? cafe(corrigidas, total) : null;
+  const t = $('#turma').value.trim().toUpperCase(), lista = estado.chamadas?.[t] ?? {};
+  const corrigidas = Object.values(estado.correcoes ?? {}).filter(c => c.turma === t && c.numero in lista).length;
+  const c = estado.prova ? cafe(corrigidas, Object.keys(lista).length) : null;
   $('#cafe').hidden = !c;
-  if (c) $('#cafe').innerHTML = `<img src="img/elenco/neide-${c.faltam ? 'tedio' : 'feliz'}.svg" alt="" width="64" height="64">
-    <div><b>Café da Prof.ª Neide: ${c.resta}%</b><span>${c.faltam ? `Faltam ${c.faltam} provas da ${esc(t)}. O café acaba antes.` : `Pilha da ${esc(t)} zerada. Já acabou, Jéssica? Acabou.`}</span>
-    <div class="medidor" role="img" aria-label="Café restante: ${c.resta}%"><span style="width:${c.resta}%"></span></div></div>`;
+  if (!c) return;
+  const f = falaDoCafe(c.faltam, t, nivel());
+  $('#cafe').innerHTML = `${f ? `<img src="img/elenco/${f.quem}-${f.cara}.svg" alt="" width="64" height="64">` : ''}
+    <div><b>${f ? `Café da Prof.ª Neide: ${c.resta}%` : `Pilha da ${esc(t)}`}</b><span>${f ? esc(f.texto) : `Faltam ${c.faltam} de ${Object.keys(lista).length}.`}</span>
+    <div class="medidor" role="img" aria-label="Falta corrigir: ${c.resta}%"><span style="width:${c.resta}%"></span></div></div>`;
 }
 $('#deboche').addEventListener('change', e => {
   try { localStorage.setItem('deboche', e.target.value); } catch { /* vale só nesta visita */ }
@@ -774,7 +775,7 @@ function atualizarConferencia() {
   const c = notaDe(estado.prova, { versao: $('#versao').value || 'A', respostas: v.map(x => x || 'branco') });
   $('#placar').textContent = estado.prova.pesquisa ? `Pesquisa: ${v.filter(x => x && x !== 'branco').length} de ${v.length} questões respondidas`
     : `${c.acertos} de ${c.total} acertos · nota ${nota1(c.nota)}`;
-  $('#fala-leitura').innerHTML = estado.prova.pesquisa ? '' : falaHTML(falaDaLeitura(c.acertos, c.total, nivel()));
+  $('#fala-leitura').innerHTML = estado.prova.pesquisa ? '' : falaHTML(falaDaLeitura(c.pontos, c.possiveis, nivel())) /* pela nota: vale com pesos e parciais */;
   const faltam = v.flatMap((x, i) => (x === '' ? [i + 1] : []));
   const numeroOk = /^\d{1,2}$/.test($('#numero').value.trim()), versaoOk = $('#versao').value !== '';
   const com = m => v.flatMap((x, i) => (x === m ? [i + 1] : []));
@@ -869,13 +870,12 @@ function renderResultados() {
 }
 // Termômetro da nota: alunos por faixa (escala de 10), cada faixa com a fala do elenco.
 function termometro(fracoes) {
-  if (nivel() === 'desligado') return '';
   const conta = faixas(fracoes.map(f => f * 10), 10), maior = Math.max(1, ...conta);
   return `<section class="termometro" aria-label="Termômetro da nota"><h3>Termômetro da nota</h3>
     ${['9–10', '7–8', '5–6', '3–4', '0–2'].map((nome, i) => {
       const f = falaDaFaixa(i, nivel());
-      return `<div class="faixa"><img src="img/elenco/${f.quem}-${f.cara}.svg" alt="" width="40" height="40">
-        <div><p><span>${nome}: ${esc(f.texto)}</span><b>${conta[i]}</b></p><div class="medidor f${i}"><span style="width:${(conta[i] / maior) * 100}%"></span></div></div></div>`;
+      return `<div class="faixa">${f ? `<img src="img/elenco/${f.quem}-${f.cara}.svg" alt="" width="40" height="40">` : ''}
+        <div><p><span>${nome}${f ? `: ${esc(f.texto)}` : ''}</span><b>${conta[i]}</b></p><div class="medidor f${i}"><span style="width:${(conta[i] / maior) * 100}%"></span></div></div></div>`;
     }).join('')}</section>`;
 }
 
@@ -883,13 +883,13 @@ function termometro(fracoes) {
 // A cor de fundo vai do vermelho (pouco acerto) ao verde; a alternativa certa fica em negrito.
 function renderAnalise({ questoes, alunos, notas }, L, pesquisa) {
   $('#analise-notas').hidden = pesquisa;
-  const faixas = Array(10).fill(0);
-  for (const n of notas) faixas[Math.min(9, Math.floor(n))]++;
-  const maior = Math.max(1, ...faixas), media = notas.reduce((a, b) => a + b, 0) / notas.length;
+  const dez = Array(10).fill(0); // 10 faixas de 1 ponto (as do termômetro são 5)
+  for (const n of notas) dez[Math.min(9, Math.floor(n))]++;
+  const maior = Math.max(1, ...dez), media = notas.reduce((a, b) => a + b, 0) / notas.length;
   $('#analise-notas').innerHTML = `<h3>Distribuição das notas</h3>
     <p class="dica">${notas.length} aluno(s) · média ${nota1(media)}</p>
-    <div class="histograma" role="img" aria-label="Alunos por faixa de nota: ${faixas.map((f, i) => `${i} a ${i + 1}: ${f}`).join('; ')}">
-      ${faixas.map((f, i) => `<div><span style="height:${(f / maior) * 100}%"></span><b>${f || ''}</b><small>${i}–${i + 1}</small></div>`).join('')}
+    <div class="histograma" role="img" aria-label="Alunos por faixa de nota: ${dez.map((f, i) => `${i} a ${i + 1}: ${f}`).join('; ')}">
+      ${dez.map((f, i) => `<div><span style="height:${(f / maior) * 100}%"></span><b>${f || ''}</b><small>${i}–${i + 1}</small></div>`).join('')}
     </div>`;
   const cor = p => `hsl(${Math.round(p * 1.2)} 55% 82%); color: #3a2a22`;
   const acertos = questoes.map(q => q.acerto), facil = Math.max(...acertos), dificil = Math.min(...acertos);

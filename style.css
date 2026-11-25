@@ -2,20 +2,20 @@
 @font-face { font-family: Quicksand; font-weight: 500; font-display: swap; src: url(vendor/quicksand/quicksand-latin-500-normal.woff2) format('woff2'); }
 @font-face { font-family: Quicksand; font-weight: 700; font-display: swap; src: url(vendor/quicksand/quicksand-latin-700-normal.woff2) format('woff2'); }
 :root, :root[data-tema=claro] {
-  --fundo: #f6eee6; --cartao: #fff9f3; --cartao2: #f8efe6; --linha: #ecdccf; --borda: #d9c2b1; --texto: #4a3b33; --suave: #7d6a5e;
+  --fundo: #f6eee6; --cartao: #fff9f3; --cartao2: #f8efe6; --linha: #ecdccf; --borda: #9c8472; --texto: #4a3b33; --suave: #6e5b50;
   --ativo: #f2a27a; --ativo-texto: #3a2a22; --lilas: #f2a27a; --lilas-texto: #9a4a22; --amarelo-fundo: #e98aa5; --verde-fundo: #9dd4b9;
   --azul: #9a4a22; --verde: #2e7d57; --vermelho: #b23a5a; --amarelo: #8a5a00; --rosto: #fce3d3;
   --sombra: 0 8px 20px rgba(120, 80, 60, .10); color-scheme: light;
 }
 :root[data-tema=escuro] {
-  --fundo: #2a2320; --cartao: #362d29; --cartao2: #3e3430; --linha: #4a3e39; --borda: #5a4a42; --texto: #f3e6da; --suave: #bfae9f;
+  --fundo: #2a2320; --cartao: #362d29; --cartao2: #3e3430; --linha: #4a3e39; --borda: #8a7466; --texto: #f3e6da; --suave: #bfae9f;
   --ativo: #f2a27a; --ativo-texto: #3a2a22; --lilas: #f2a27a; --lilas-texto: #f6c3a6; --amarelo-fundo: #e98aa5; --verde-fundo: #9dd4b9;
   --azul: #f6c3a6; --verde: #9dd4b9; --vermelho: #f0a3b6; --amarelo: #f3d38c; --rosto: #f6d9c6;
   --sombra: 0 8px 20px rgba(0, 0, 0, .25); color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-tema=claro]) {
-    --fundo: #2a2320; --cartao: #362d29; --cartao2: #3e3430; --linha: #4a3e39; --borda: #5a4a42; --texto: #f3e6da; --suave: #bfae9f;
+    --fundo: #2a2320; --cartao: #362d29; --cartao2: #3e3430; --linha: #4a3e39; --borda: #8a7466; --texto: #f3e6da; --suave: #bfae9f;
     --ativo: #f2a27a; --ativo-texto: #3a2a22; --lilas: #f2a27a; --lilas-texto: #f6c3a6; --amarelo-fundo: #e98aa5; --verde-fundo: #9dd4b9;
     --azul: #f6c3a6; --verde: #9dd4b9; --vermelho: #f0a3b6; --amarelo: #f3d38c; --rosto: #f6d9c6;
     --sombra: 0 8px 20px rgba(0, 0, 0, .25); color-scheme: dark;
@@ -46,7 +46,7 @@ input[type=checkbox] { accent-color: var(--ativo); width: 20px; height: 20px; }
 label.botao { margin-top: 16px; width: 100%; }
 .linha { display: flex; align-items: center; gap: 4px; padding: 6px 8px; margin: 6px 0; background: var(--cartao); border-radius: 22px; box-shadow: var(--sombra); }
 .linha .num { width: 2.2em; font-weight: 700; text-align: right; margin-right: 4px; }
-.linha button { min-width: 40px; min-height: 40px; padding: 0; border-radius: 50%; border: 2px solid var(--linha); box-shadow: none; }
+.linha button { min-width: 40px; min-height: 40px; padding: 0; border-radius: 50%; border: 2px solid var(--borda); box-shadow: none; }
 .linha button[aria-pressed=true] { background: var(--texto); border-color: var(--texto); color: var(--fundo); }
 .linha label { display: flex; align-items: center; gap: 4px; margin: 0 0 0 auto; font-weight: 400; font-size: .85rem; }
 #folha svg { width: 100%; height: auto; border: 1px solid var(--borda); margin-top: 12px; background: white; }

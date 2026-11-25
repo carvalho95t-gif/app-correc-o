@@ -1018,9 +1018,11 @@ test('elenco comenta a correção e some com o deboche desligado', async () => {
   assert.match(await page.textContent('#resultados'), /Prof.ª Neide.*Q4: só 0% acertaram/s);
   await page.click('#aba-corrigir');
   await page.click('#deboche label:has([value=desligado])');
-  assert.ok(await page.isHidden('#cafe'));
+  assert.match(await page.textContent('#cafe'), /Pilha da 2A.*Faltam 3 de 4/s); // só a conta, sem personagem
+  assert.equal(await page.locator('#cafe img').count(), 0);
   await page.click('#aba-resultados');
-  assert.equal(await page.locator('#resultados .fala, .termometro').count(), 0);
+  assert.match(await page.textContent('.termometro'), /7–8\s*1/);
+  assert.equal(await page.locator('#resultados .fala, .termometro img').count(), 0);
   assert.deepEqual(erros, []);
   await ctx.close();
 });

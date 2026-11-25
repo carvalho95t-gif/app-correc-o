@@ -48,3 +48,11 @@ test('cafe: o café da Neide acaba junto com a pilha', async () => {
   assert.deepEqual(cafe(35, 32), { resta: 0, faltam: 0 }); // alunos fora da lista
   assert.equal(cafe(3, 0), null); // turma sem lista de chamada
 });
+
+test('falaDoCafe: Neide conta o que falta e a Merenda celebra a pilha zerada', async () => {
+  const { falaDoCafe } = await import('../src/piadas.js');
+  assert.deepEqual(falaDoCafe(18, '2A', 'raiz'), { quem: 'neide', cara: 'tedio', texto: 'Faltam 18 provas da 2A. O café acaba antes.' });
+  assert.deepEqual(falaDoCafe(0, '2A', 'raiz'), { quem: 'merenda', cara: 'feliz', texto: 'Pilha da 2A zerada. Já acabou, Jéssica? Acabou.' });
+  assert.equal(falaDoCafe(1, '2A', 'leve').texto, 'Falta 1 prova da 2A.');
+  assert.equal(falaDoCafe(3, '2A', 'desligado'), null);
+});

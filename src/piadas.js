@@ -80,3 +80,11 @@ export function cafe(corrigidas, total) {
 
 export const NOMES = { neide: 'Prof.ª Neide', valdir: 'Coordenador Valdir', kevin: 'Kevin do fundão', merenda: 'Dona Merenda' };
 export const NIVEIS = ['desligado', 'leve', 'raiz'];
+
+// Fala ao lado do café: quanto falta da pilha da turma, ou a festa quando acaba.
+export function falaDoCafe(faltam, turma, nivel) {
+  if (!['raiz', 'leve'].includes(nivel)) return null;
+  if (!faltam) return fala('merenda', 'feliz', `Pilha da ${turma} zerada.${nivel === 'raiz' ? ' Já acabou, Jéssica? Acabou.' : ''}`);
+  const quanto = faltam === 1 ? 'Falta 1 prova' : `Faltam ${faltam} provas`;
+  return fala('neide', 'tedio', `${quanto} da ${turma}.${nivel === 'raiz' ? ' O café acaba antes.' : ''}`);
+}
