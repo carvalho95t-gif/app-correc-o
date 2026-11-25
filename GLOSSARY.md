@@ -5,7 +5,7 @@ Correção de provas objetivas no estilo ENEM (alternativas A a E) aplicadas em 
 ## Language
 
 **Prova**:
-Uma avaliação objetiva com nome, número de questões e gabarito. Uma prova ativa por vez.
+Uma avaliação objetiva com nome, número de questões e gabarito (no modo pesquisa, sem gabarito). Uma prova ativa por vez.
 _Avoid_: Teste, avaliação, exame
 
 **Gabarito**:
@@ -119,7 +119,7 @@ Fácil (85% ou mais de acerto), média (50 a 84%) ou difícil (menos de 50%).
 Quanto a questão separa os alunos que foram bem na prova dos que foram mal. Abaixo de 0,2 a questão é marcada para revisar.
 
 **Percentil**:
-Quantos % dos outros alunos da turma tiraram nota menor. O melhor aluno tem percentil 100.
+Quantos % dos outros alunos da turma tiraram nota menor ou igual. A maior nota, mesmo empatada, tem percentil 100.
 
 **Modo pesquisa**:
 Prova sem gabarito e sem nota (um questionário): o app só conta quantos marcaram cada alternativa.

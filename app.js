@@ -393,7 +393,7 @@ $('#gabarito-arquivo').addEventListener('change', async e => {
 });
 $('#baixar-gabarito').addEventListener('click', () => {
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(gabaritoEmLinhas(rascunho)), 'Gabarito');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(gabaritoEmLinhas((embaralhando(rascunho) && estado.prova) || rascunho)) /* B–D embaralhadas só existem na prova salva */, 'Gabarito');
   XLSX.writeFile(wb, `Gabarito - ${(rascunho.nome.trim() || 'prova').replace(/[\\/:*?"<>|]/g, '')}.csv`, { bookType: 'csv', FS: ';' });
 });
 $('#parcial-ativar').addEventListener('change', e => {
@@ -471,7 +471,7 @@ $('#salvar-prova').addEventListener('click', () => {
   if (problema) { msg.textContent = problema; return; }
   try {
     persistir(definirProva(estado, { ...(rascunho.pesquisa ? { pesquisa: true } : {}), codigo: estado.prova?.codigo ?? novoCodigo(), ...(temCaderno(rascunho) ? { caderno: structuredClone(rascunho.caderno) } : {}), ...(areas.length ? { areas } : {}), ...(conceitos.length ? { conceitos } : {}), nome: rascunho.nome.trim(), valor, ...((rascunho.alternativas ?? 'ABCDE') !== 'ABCDE' ? { alternativas: rascunho.alternativas } : {}), ...(rascunho.pesos?.some(p => p !== 1) ? { pesos: [...rascunho.pesos] } : {}),
-      versoes: rascunho.versoes.map(v => ({ gabarito: v.gabarito.map(g => (rascunho.pesquisa ? '' : g || letras(rascunho)[0])), anuladas: [...v.anuladas],
+      versoes: rascunho.versoes.map(v => ({ gabarito: v.gabarito.map(g => (rascunho.pesquisa ? g : g || letras(rascunho)[0])) /* pesquisa guarda o gabarito que houver: desligar não perde nada */, anuladas: [...v.anuladas],
         ...(temParciais(v) ? { parciais: v.parciais.map((o, i) => Object.fromEntries(Object.entries(o ?? {}).filter(([a, f]) => f > 0 && a !== v.gabarito[i]))) } : {}) })) }));
     renderProva();
     msg.textContent = 'Prova salva. Agora imprima a folha na aba Folha.';

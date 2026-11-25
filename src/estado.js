@@ -29,8 +29,8 @@ export function apagarProva(arquivo, id) {
   return { ...arquivo, provas: resto, ativa: arquivo.ativa === id ? null : arquivo.ativa };
 }
 // Banco de questões: { id, enunciado, fonte, comando, alternativas, certa, disciplina, assunto, imagem? }.
-// A mesma questão (mesmo texto-base, comando e alternativas) guardada de novo atualiza a que já estava.
-const mesma = (a, b) => a.enunciado === b.enunciado && a.comando === b.comando && JSON.stringify(a.alternativas) === JSON.stringify(b.alternativas);
+// A mesma questão (mesmo texto-base, fonte, comando, imagem e alternativas) guardada de novo atualiza a que já estava.
+const mesma = (a, b) => a.enunciado === b.enunciado && a.fonte === b.fonte && a.comando === b.comando && a.imagem === b.imagem && JSON.stringify(a.alternativas) === JSON.stringify(b.alternativas);
 export function guardarNoBanco(arquivo, questao) {
   const banco = arquivo.banco ?? [], antiga = banco.find(x => mesma(x, questao));
   const nova = { ...questao, id: antiga?.id ?? `b${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}` };

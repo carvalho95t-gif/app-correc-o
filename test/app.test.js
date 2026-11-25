@@ -807,7 +807,7 @@ test('lista da turma e gabarito trazidos de arquivos CSV', async () => {
   assert.match(await page.textContent('#prova-msg'), /Prova salva/);
   const [download] = await Promise.all([page.waitForEvent('download'), page.click('#baixar-gabarito')]);
   assert.equal(download.suggestedFilename(), 'Gabarito - Do CSV.csv');
-  assert.match((await readFile(await download.path(), 'utf8')), /Questão;Resposta\n1;B\n2;C\n3;A/);
+  assert.match((await readFile(await download.path(), 'utf8')), /Questão;Gabarito\n1;B\n2;C\n3;A/);
   await page.click('#aba-resultados');
   await page.click('#lista summary');
   await page.setInputFiles('#lista-arquivo', { name: 'turma.csv', mimeType: 'text/csv', buffer: Buffer.from('Nº,Nome\n1,Ana Souza\n2,Bia Lima\n') });
@@ -969,5 +969,16 @@ test('banco de questões: guarda uma questão, acha na busca e usa em outra prov
   await page.click('#salvar-prova');
   assert.match(await page.textContent('#prova-msg'), /Prova salva/);
   assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+test('modo pesquisa ligado numa prova com gabarito guarda o gabarito', async () => {
+  const { ctx, page } = await abrirApp();
+  await criarProva(page, { gabarito: 'EDCBAEDCBA' });
+  await page.check('#prova-pesquisa');
+  await page.click('#salvar-prova');
+  const prova = await page.evaluate(() => { const a = JSON.parse(localStorage.getItem('correcao-v3')); return a.provas[a.ativa].prova; });
+  assert.equal(prova.pesquisa, true);
+  assert.equal(prova.versoes[0].gabarito.join(''), 'EDCBAEDCBA');
   await ctx.close();
 });

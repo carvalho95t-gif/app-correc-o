@@ -34,8 +34,8 @@ export const conceitoDe = (faixas, nota) => faixas.find(f => nota >= f.min - 1e-
 const notaNoValor = (prova, r) => Math.round((r.pontos / r.possiveis) * (prova.valor ?? 10) * 10) / 10;
 // Posição de cada nota na lista (notas iguais dividem a posição).
 export const posicoes = notas => notas.map(n => 1 + notas.filter(m => m > n).length);
-// Percentil: % dos outros alunos com nota menor (o único aluno da prova fica com 100).
-export const percentis = notas => notas.map(n => (notas.length < 2 ? 100 : Math.round((100 * notas.filter(m => m < n).length) / (notas.length - 1))));
+// Percentil: % dos outros alunos com nota menor ou igual (a maior nota, mesmo empatada, fica com 100).
+export const percentis = notas => notas.map((n, i) => (notas.length < 2 ? 100 : Math.round((100 * notas.filter((m, j) => j !== i && m <= n).length) / (notas.length - 1))));
 // Pesos colados de uma planilha ou digitados: "2 2 1,5 1". null se algum não for número maior que zero.
 export function lerPesos(texto) {
   const ps = String(texto ?? '').split(/[\s;]+/).filter(Boolean).map(t => (/^\d+(?:[.,]\d+)?$/.test(t) ? Number(t.replace(',', '.')) : NaN));
@@ -88,7 +88,7 @@ function pesquisa(prova, turmas) {
   const todos = Object.values(turmas).flat();
   return prova.versoes[0].gabarito.map((_, i) => {
     const conta = m => todos.filter(c => c.respostas[i] === m).length;
-    return { Questão: `Q${i + 1}`, Respostas: todos.length,
+    return { Questão: `Q${i + 1}`, Alunos: todos.length,
       ...Object.fromEntries([...(prova.alternativas ?? 'ABCDE')].flatMap(a => [[a, conta(a)], [`% ${a}`, pct(conta(a), todos.length)]])),
       Branco: conta('branco'), Dupla: conta('dupla') };
   });
@@ -227,13 +227,13 @@ export function listaDeLinhas(linhas) {
     return nome ? [num ? `${num.padStart(2, '0')} ${nome}` : nome] : [];
   }).join('\n');
 }
-// Gabarito: linhas "questão, letra", uma coluna de letras ou uma linha de letras. Letra fora da prova fica ''.
-// Gabarito para baixar em CSV: [Questão, Resposta] ou uma coluna por versão.
+// Gabarito para baixar em CSV: [Questão, Gabarito] ou uma coluna por versão.
 export function gabaritoEmLinhas(prova) {
   const vs = prova.versoes;
-  return [['Questão', ...(vs.length === 1 ? ['Resposta'] : vs.map((_, i) => `Versão ${'ABCD'[i]}`))],
+  return [['Questão', ...(vs.length === 1 ? ['Gabarito'] : vs.map((_, i) => `Versão ${'ABCD'[i]}`))],
     ...vs[0].gabarito.map((_, q) => [q + 1, ...vs.map(v => v.gabarito[q])])];
 }
+// Gabarito: linhas "questão, letra", uma coluna de letras ou uma linha de letras. Letra fora da prova fica ''.
 export function gabaritoDeLinhas(linhas, letras) {
   const letra = c => (letras.includes(celula(c).toUpperCase()) ? celula(c).toUpperCase() : '');
   const ehLetra = c => /^[A-Za-z]$/.test(celula(c));

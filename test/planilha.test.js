@@ -413,16 +413,17 @@ test('lista de pesos colada: espaço, tab, ponto e vírgula ou linha; vírgula d
   assert.deepEqual(lerPesos('  '), []);
 });
 
-test('percentil: % dos outros alunos com nota menor', async () => {
+test('percentil: % dos outros alunos com nota menor ou igual', async () => {
   const { percentis } = await import('../src/planilha.js');
-  assert.deepEqual(percentis([10, 5, 5, 0, 8]), [100, 25, 25, 0, 75]);
+  assert.deepEqual(percentis([10, 5, 5, 0, 8]), [100, 50, 50, 0, 75]);
+  assert.deepEqual(percentis([9, 9, 1]), [100, 100, 0]);
   assert.deepEqual(percentis([7]), [100]);
 });
 
 test('gabarito em CSV: uma linha por questão, uma coluna por versão; volta pelo mesmo leitor', async () => {
   const { gabaritoEmLinhas, gabaritoDeLinhas } = await import('../src/planilha.js');
   const uma = gabaritoEmLinhas({ versoes: [{ gabarito: ['A', 'C', ''] }] });
-  assert.deepEqual(uma, [['Questão', 'Resposta'], [1, 'A'], [2, 'C'], [3, '']]);
+  assert.deepEqual(uma, [['Questão', 'Gabarito'], [1, 'A'], [2, 'C'], [3, '']]);
   assert.deepEqual(gabaritoDeLinhas(uma, 'ABCDE'), ['A', 'C', '']);
   assert.deepEqual(gabaritoEmLinhas({ versoes: [{ gabarito: ['A', 'B'] }, { gabarito: ['B', 'A'] }] }), [['Questão', 'Versão A', 'Versão B'], [1, 'A', 'B'], [2, 'B', 'A']]);
 });
@@ -436,7 +437,7 @@ test('pesquisa: aba da turma só com as respostas e aba Pesquisa com contagem e 
   assert.deepEqual(t[0], ['Nº', 'Q1', 'Q2', 'Q3', 'Q4']);
   assert.deepEqual(t[1], ['03', 'A', 'E', 'E', 'D']);
   const p = linhas(wb, 'Pesquisa');
-  assert.deepEqual(p[0], ['Questão', 'Respostas', 'A', '% A', 'B', '% B', 'C', '% C', 'D', '% D', 'E', '% E', 'Branco', 'Dupla']);
+  assert.deepEqual(p[0], ['Questão', 'Alunos', 'A', '% A', 'B', '% B', 'C', '% C', 'D', '% D', 'E', '% E', 'Branco', 'Dupla']);
   assert.deepEqual(p[1], ['Q1', 4, 3, 75, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]);
   assert.deepEqual(p[2], ['Q2', 4, 0, 0, 2, 50, 0, 0, 0, 0, 2, 50, 0, 0]);
 });
