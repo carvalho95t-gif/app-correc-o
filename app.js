@@ -13,6 +13,22 @@ import { lerDocx } from './src/docx.js';
 import { carregarImagens, guardarImagem, apagarImagens, ehRef, resolver, reduzir } from './src/imagens.js';
 
 const $ = s => document.querySelector(s);
+
+// Tema claro/escuro: segue o aparelho até o professor escolher; a escolha fica guardada.
+const escuroNoAparelho = matchMedia('(prefers-color-scheme: dark)');
+const temaAtual = () => document.documentElement.dataset.tema || (escuroNoAparelho.matches ? 'escuro' : 'claro');
+const mostrarTema = () => {
+  const escuro = temaAtual() === 'escuro';
+  $('#tema').setAttribute('aria-pressed', String(escuro));
+};
+$('#tema').addEventListener('click', () => {
+  const novo = temaAtual() === 'escuro' ? 'claro' : 'escuro';
+  document.documentElement.dataset.tema = novo;
+  try { localStorage.setItem('tema', novo); } catch (e) { /* sem armazenamento: vale só nesta visita */ }
+  mostrarTema();
+});
+escuroNoAparelho.addEventListener('change', mostrarTema);
+mostrarTema();
 const letras = p => [...(p.alternativas ?? 'ABCDE')];
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const ROTULO = { branco: 'Em branco', dupla: 'Dupla marcação' };

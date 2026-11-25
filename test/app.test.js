@@ -982,3 +982,17 @@ test('modo pesquisa ligado numa prova com gabarito guarda o gabarito', async () 
   assert.equal(prova.versoes[0].gabarito.join(''), 'EDCBAEDCBA');
   await ctx.close();
 });
+
+test('o botão de tema troca entre claro e escuro e lembra a escolha', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  const tema = () => page.evaluate(() => document.documentElement.dataset.tema);
+  await page.click('#tema');
+  assert.equal(await tema(), 'escuro');
+  assert.equal(await page.getAttribute('#tema', 'aria-pressed'), 'true');
+  await page.reload();
+  assert.equal(await tema(), 'escuro');
+  await page.click('#tema');
+  assert.equal(await tema(), 'claro');
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
