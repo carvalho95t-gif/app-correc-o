@@ -152,3 +152,20 @@ details summary { min-height: 44px; cursor: pointer; font-weight: 600; }
 .acoes label.botao { margin: 0; width: auto; }
 label.botao, button { text-align: center; }
 button, .botao { line-height: 1.25; }
+.resumo { display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px; margin: 8px 0 10px; }
+.numero-grande { background: var(--cartao); border: 1px solid var(--linha); border-radius: 20px; padding: 14px 16px; box-shadow: var(--sombra); }
+.numero-grande b { display: block; font-size: 2.6rem; font-weight: 300; line-height: 1.05; }
+.numero-grande span { color: var(--suave); font-size: .85rem; }
+.barras { display: flex; align-items: flex-end; gap: 4px; height: 150px; overflow-x: auto; }
+.barras > div { flex: 1 0 18px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; gap: 4px; }
+.barras span { display: flex; justify-content: center; padding-top: 4px; border-radius: 10px; font-size: .6rem; font-weight: 700; color: #24232b; overflow: hidden; background: repeating-linear-gradient(135deg, var(--linha) 0 2px, var(--cartao2) 2px 7px); }
+.barras span.facil, .legenda-barras .facil { background: var(--lilas); }
+.barras span.dificil, .legenda-barras .dificil { background: var(--amarelo-fundo); }
+.barras small { text-align: center; font-size: .7rem; color: var(--suave); }
+.legenda-barras span { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-left: 8px; }
+.histograma span { border-radius: 10px 10px 4px 4px; }
+#resultados td, #resultados th { padding: 8px 6px; }
+#resultados td button { min-height: 40px; padding: 0 10px; font-size: .9rem; }
+.rolagem { max-width: 100%; }
+.rolagem > table { margin-bottom: 0; }
+.rolagem { margin-bottom: 16px; border-radius: 16px; }

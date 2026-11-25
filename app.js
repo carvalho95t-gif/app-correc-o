@@ -815,8 +815,11 @@ function renderResultados() {
         <td>${c.respostas.filter(r => r !== 'branco').length}/${c.respostas.length}</td>
         <td><button data-apagar="${chave(t, c.numero)}" aria-label="Apagar correção do nº ${c.numero}, turma ${t}">Apagar</button></td></tr>`).join('')}</tbody></table>`;
     const rs = cs.map(c => notaDe(p, c)), fr = rs.map(r => r.pontos / r.possiveis), pos = posicoes(fr), perc = percentis(fr);
+    const media = rs.reduce((a, r) => a + r.nota, 0) / rs.length;
     return `
-    <table><caption>Turma ${t} · ${cs.length} aluno(s)</caption>
+    <div class="resumo"><div class="numero-grande"><b>${nota1(media)}</b><span>Média da turma ${t}</span></div>
+      <div class="numero-grande"><b>${cs.length}</b><span>Corrigidos</span></div></div>
+    <div class="rolagem"><table><caption>Turma ${t} · ${cs.length} aluno(s)</caption>
       <thead><tr><th>Nº</th><th>Nome</th><th>Acertos</th><th>Nota</th><th>Posição</th>${comConceito ? '<th>Conceito</th>' : ''}<th><span class="oculto">Ações</span></th></tr></thead>
       <tbody>${cs.map((c, j) => {
         const r = rs[j], k = chave(t, c.numero), noValor = Math.round((r.pontos / r.possiveis) * valor * 10) / 10;
@@ -824,7 +827,7 @@ function renderResultados() {
           <td>${esc(nomeDo(estado, t, c.numero))}</td><td>${r.acertos}/${r.total}</td><td>${nota1(r.nota)}</td><td>${pos[j]}º <small>(percentil ${perc[j]})</small></td>
           ${comConceito ? `<td>${esc(conceitoDe(p.conceitos, noValor))}</td>` : ''}
           <td><button data-apagar="${k}" aria-label="Apagar correção do nº ${c.numero}, turma ${t}">Apagar</button></td></tr>`;
-      }).join('')}</tbody></table>`;
+      }).join('')}</tbody></table></div>`;
   }).join('');
   $('#analise-tela').hidden = vazio;
   if (!vazio) renderAnalise(analiseDaProva(estado), letras(p), !!p.pesquisa);
@@ -842,8 +845,14 @@ function renderAnalise({ questoes, alunos, notas }, L, pesquisa) {
     <div class="histograma" role="img" aria-label="Alunos por faixa de nota: ${faixas.map((f, i) => `${i} a ${i + 1}: ${f}`).join('; ')}">
       ${faixas.map((f, i) => `<div><span style="height:${(f / maior) * 100}%"></span><b>${f || ''}</b><small>${i}–${i + 1}</small></div>`).join('')}
     </div>`;
-  const cor = p => `hsl(${Math.round(p * 1.2)} 70% 88%)`;
-  $('#analise-questoes').innerHTML = `<h3>Questões</h3>
+  const cor = p => `hsl(${Math.round(p * 1.2)} 55% 82%); color: #24232b`;
+  const acertos = questoes.map(q => q.acerto), facil = Math.max(...acertos), dificil = Math.min(...acertos);
+  const barras = pesquisa ? '' : `<h3>Acerto por questão</h3>
+    <div class="barras" role="img" aria-label="Acerto por questão: ${acertos.map((a, i) => `${i + 1}: ${a}%`).join('; ')}">
+      ${acertos.map((a, i) => `<div><span class="${a === facil ? 'facil' : a === dificil ? 'dificil' : ''}" style="height:${Math.max(a, 4)}%">${a === facil || a === dificil ? `${a}%` : ''}</span><small>${i + 1}</small></div>`).join('')}
+    </div>
+    <p class="dica legenda-barras"><span class="facil"></span> mais fácil <span class="dificil"></span> mais difícil</p>`;
+  $('#analise-questoes').innerHTML = `${barras}<h3>Questões</h3>
     <p class="dica">% dos ${alunos} aluno(s) da versão A.${pesquisa ? '' : ' A alternativa certa está em negrito.'}</p>
     <div class="rolagem"><table class="analise">
       <thead><tr><th>Q</th>${pesquisa ? '' : '<th>Acerto</th>'}${L.map(a => `<th>${a}</th>`).join('')}<th>Branco</th><th>Dupla</th></tr></thead>
