@@ -440,3 +440,20 @@ test('pesquisa: aba da turma só com as respostas e aba Pesquisa com contagem e 
   assert.deepEqual(p[1], ['Q1', 4, 3, 75, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]);
   assert.deepEqual(p[2], ['Q2', 4, 0, 0, 2, 50, 0, 0, 0, 0, 2, 50, 0, 0]);
 });
+
+// ---------- plano 5: relatório da turma juntando várias provas ----------
+test('relatório da turma: uma coluna por prova (nota no valor), soma e média; falta conta zero ou não', async () => {
+  const { relatorioDaTurma } = await import('../src/planilha.js');
+  let p1 = definirProva(estadoInicial(), { nome: 'P1', valor: 5, versoes: [{ gabarito: ['A', 'B'], anuladas: [] }] });
+  p1 = definirLista(p1, '2A', '01 Ana\n02 Bia');
+  p1 = registrar(registrar(p1, corr('2A', '01', ['A', 'B'])), corr('2A', '02', ['A', 'E']));
+  p1 = registrar(p1, corr('2B', '01', ['A', 'B']));
+  let p2 = definirProva(estadoInicial(), { nome: 'P2', valor: 10, versoes: [{ gabarito: ['C'], anuladas: [] }] });
+  p2 = registrar(p2, corr('2A', '01', ['E']));
+  assert.deepEqual(relatorioDaTurma([p1, p2], '2A', false), [
+    ['Nº', 'Nome', 'P1 (valor 5)', 'P2 (valor 10)', 'Soma', 'Média (0 a 10)'],
+    ['01', 'Ana', 5, 0, 5, 3.3],
+    ['02', 'Bia', 2.5, 'falta', 2.5, 5],
+  ]);
+  assert.deepEqual(relatorioDaTurma([p1, p2], '2A', true)[2], ['02', 'Bia', 2.5, 'falta', 2.5, 1.7]);
+});

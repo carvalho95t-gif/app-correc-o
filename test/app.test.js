@@ -905,3 +905,31 @@ test('modo pesquisa: salva sem gabarito, conta respostas e a planilha tem a aba 
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+// ---------- plano 5: relatório da turma ----------
+test('relatório da turma: junta a nota de cada prova e baixa a planilha', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await criarProva(page, { nome: 'P1', gabarito: 'EDCBAEDCBA' });
+  await fotografarECorrigir(page, '2A', '01', [...'EDCBAEDCBA']); await page.click('#salvar-leitura');
+  await page.click('#aba-prova');
+  await page.click('#duplicar-prova');
+  await page.fill('#prova-nome', 'P2');
+  await page.click('#salvar-prova');
+  await fotografarECorrigir(page, '2A', '01', [...'EDCBAEEEEE']); await page.click('#salvar-leitura');
+  await fotografarECorrigir(page, '2A', '02', [...'EDCBAEDCBA']); await page.click('#salvar-leitura');
+  await page.click('#aba-resultados');
+  await page.click('#relatorio summary');
+  await page.fill('#relatorio-turma', '3c');
+  await page.click('#baixar-relatorio');
+  assert.match(await page.textContent('#relatorio-msg'), /Nenhuma correção da turma 3C/);
+  await page.fill('#relatorio-turma', '2a');
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#baixar-relatorio')]);
+  assert.equal(download.suggestedFilename(), 'Relatorio 2A.xlsx');
+  const wb = XLSX.read(await readFile(await download.path()), { type: 'buffer' });
+  const l = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
+  assert.deepEqual(l[0], ['Nº', 'Nome', 'P1 (valor 10)', 'P2 (valor 10)', 'Soma', 'Média (0 a 10)']);
+  assert.deepEqual(l[1], ['01', '', 10, 6, 16, 8]);
+  assert.deepEqual(l[2], ['02', '', 'falta', 10, 10, 10]);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});

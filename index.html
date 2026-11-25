@@ -179,6 +179,15 @@
         <div id="analise-questoes"></div>
       </details>
       <button id="baixar" class="primario">Baixar planilha</button>
+      <details id="relatorio">
+        <summary>Relatório da turma (várias provas)</summary>
+        <p class="dica">Junta as notas da turma em todas as provas deste aparelho: uma coluna por prova, a soma e a média de 0 a 10.</p>
+        <label for="relatorio-turma">Turma</label>
+        <input id="relatorio-turma" autocomplete="off" placeholder="Ex.: 2A">
+        <label class="opcao"><input type="checkbox" id="relatorio-falta-zero"> Prova que o aluno não fez conta como zero na média</label>
+        <p id="relatorio-msg" role="status"></p>
+        <button id="baixar-relatorio">Baixar relatório</button>
+      </details>
       <details id="lista">
         <summary>Lista de chamada (nomes dos alunos)</summary>
         <p class="dica">Cole um nome por linha, na ordem da chamada. Se preferir, comece a linha pelo número (ex.: "07 Ana Souza").</p>

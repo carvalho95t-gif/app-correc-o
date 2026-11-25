@@ -247,3 +247,21 @@ export function gabaritoDeLinhas(linhas, letras) {
   if (coluna.length > 1) return coluna.map(letra);
   return (linhas.find(l => l.filter(ehLetra).length > 1) ?? []).filter(ehLetra).map(letra);
 }
+
+// Relatório da turma: a nota de cada aluno em cada prova (no valor da prova), a soma e a média de 0 a 10,
+// que é a soma ÷ soma dos valores × 10. faltaZero: a prova que o aluno não fez entra no total (vale zero).
+export function relatorioDaTurma(estados, turma, faltaZero) {
+  const provas = estados.filter(e => !e.prova.pesquisa && Object.values(e.correcoes).some(c => c.turma === turma));
+  const numeros = [...new Set(provas.flatMap(e => Object.values(e.correcoes).filter(c => c.turma === turma).map(c => c.numero)))].sort();
+  const linhas = numeros.map(n => {
+    const nome = provas.map(e => nomeDo(e, turma, n)).find(Boolean) ?? '';
+    const notas = provas.map(e => {
+      const c = Object.values(e.correcoes).find(x => x.turma === turma && x.numero === n);
+      return c ? notaNoValor(e.prova, notaDe(e.prova, c)) : 'falta';
+    });
+    const conta = provas.filter((_, k) => faltaZero || notas[k] !== 'falta');
+    const total = Math.round(soma(notas.filter(x => x !== 'falta')) * 10) / 10, valores = soma(conta.map(e => e.prova.valor ?? 10));
+    return [n, nome, ...notas, total, valores ? Math.round((total / valores) * 100) / 10 : 0];
+  });
+  return [['Nº', 'Nome', ...provas.map(e => `${e.prova.nome} (valor ${numeroBR(e.prova.valor ?? 10)})`), 'Soma', 'Média (0 a 10)'], ...linhas];
+}

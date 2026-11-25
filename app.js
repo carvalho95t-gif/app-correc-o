@@ -4,7 +4,7 @@ import { folhaSVG, quadroSVG } from './src/folha.js';
 import { qrSVG, textoQR, lerQR } from './src/qr.js';
 import { carregar, salvar, definirProva, arquivoInicial, ativo, comAtivo, escolher, novaProva, apagarProva, listar,
   acharPorNome, validarAreas, registrar, chave, remover, marcarExportado, definirLista, nomeDo, versaoDe } from './src/estado.js';
-import { montarPlanilha, nomeArquivo, porTurma, notaDe, lerPlanilha, temParciais, lerConceitos, conceitoDe, posicoes, percentis, lerPesos, analiseDaProva, listaDeLinhas, gabaritoDeLinhas, gabaritoEmLinhas } from './src/planilha.js';
+import { montarPlanilha, nomeArquivo, porTurma, notaDe, lerPlanilha, temParciais, lerConceitos, conceitoDe, posicoes, percentis, lerPesos, analiseDaProva, listaDeLinhas, gabaritoDeLinhas, gabaritoEmLinhas, relatorioDaTurma } from './src/planilha.js';
 import { paraCinza, lerFolha, homografia, aplicar, acharMarcadores, quadroPronto, razaoDe, poucaLuz, reflexo } from './src/leitor.js';
 import { codificar } from './src/codigo.js';
 import { cadernoHTML, estiloDePagina } from './src/caderno.js';
@@ -821,6 +821,15 @@ $('#salvar-lista').addEventListener('click', () => {
   persistir(definirLista(estado, turma, $('#lista-nomes').value));
   $('#lista-msg').textContent = `Lista da turma ${turma.toUpperCase()} salva.`;
   renderResultados();
+});
+$('#baixar-relatorio').addEventListener('click', () => {
+  const turma = $('#relatorio-turma').value.trim().toUpperCase();
+  const linhas = relatorioDaTurma(Object.values(arquivo.provas).filter(e => e.prova), turma, $('#relatorio-falta-zero').checked);
+  if (linhas.length < 2) { $('#relatorio-msg').textContent = turma ? `Nenhuma correção da turma ${turma} nas provas deste aparelho.` : 'Digite a turma.'; return; }
+  $('#relatorio-msg').textContent = '';
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(linhas), "Relatório");
+  XLSX.writeFile(wb, `Relatorio ${turma.replace(/[\\/:*?"<>|]/g, '')}.xlsx`);
 });
 $('#baixar').addEventListener('click', () => {
   XLSX.writeFile(montarPlanilha(XLSX, { ...estado, prova: comImagens(estado.prova) }), nomeArquivo(estado.prova));
