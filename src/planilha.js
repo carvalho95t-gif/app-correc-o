@@ -11,7 +11,7 @@ export function porTurma(estado) {
 }
 
 // Excel compara nomes de aba sem maiúsculas; as abas fixas vêm depois e ficam reservadas.
-const RESERVADAS = ['análise', 'análise a', 'análise b', 'análise c', 'análise d', 'resumo', 'diário', 'dados'];
+const RESERVADAS = ['pesquisa', 'análise', 'análise a', 'análise b', 'análise c', 'análise d', 'resumo', 'diário', 'dados'];
 function nomeAba(t, usados) {
   const base = t.replace(/[\\/:*?[\]]/g, '-').slice(0, 31) || 'Turma';
   let nome = base;
@@ -76,6 +76,22 @@ function abaTurma(estado, turma, correcoes) {
       ...(comConceitos ? [conceitoDe(prova.conceitos, notaNoValor(prova, r))] : []), ...r.porArea.flatMap(a => [a.acertos, a.percentual])];
   });
   return [cabecalho, ...pesos, ...gabaritos, ...alunos];
+}
+
+// Modo pesquisa (sem gabarito): na turma só as respostas; na aba Pesquisa, contagem e % de cada alternativa.
+function abaRespostas(estado, turma, correcoes) {
+  const comNomes = !!estado.chamadas?.[turma], n = estado.prova.versoes[0].gabarito.length;
+  return [['Nº', ...(comNomes ? ['Nome'] : []), ...[...Array(n)].map((_, i) => `Q${i + 1}`)],
+    ...correcoes.map(c => [c.numero, ...(comNomes ? [nomeDo(estado, turma, c.numero)] : []), ...c.respostas])];
+}
+function pesquisa(prova, turmas) {
+  const todos = Object.values(turmas).flat();
+  return prova.versoes[0].gabarito.map((_, i) => {
+    const conta = m => todos.filter(c => c.respostas[i] === m).length;
+    return { Questão: `Q${i + 1}`, Respostas: todos.length,
+      ...Object.fromEntries([...(prova.alternativas ?? 'ABCDE')].flatMap(a => [[a, conta(a)], [`% ${a}`, pct(conta(a), todos.length)]])),
+      Branco: conta('branco'), Dupla: conta('dupla') };
+  });
 }
 
 // Aqui "v" é uma versão: { gabarito, anuladas }.
@@ -165,8 +181,9 @@ export function montarPlanilha(XLSX, original) {
   const estado = vistaOriginal(original);
   const wb = XLSX.utils.book_new(), turmas = porTurma(estado), { prova } = estado, usados = new Set(RESERVADAS);
   for (const [turma, cs] of Object.entries(turmas))
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(abaTurma(estado, turma, cs)), nomeAba(turma, usados));
-  if (Object.keys(turmas).length) {
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(prova.pesquisa ? abaRespostas(estado, turma, cs) : abaTurma(estado, turma, cs)), nomeAba(turma, usados));
+  if (prova.pesquisa && Object.keys(turmas).length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pesquisa(prova, turmas)), 'Pesquisa');
+  else if (Object.keys(turmas).length) {
     prova.versoes.forEach((v, k) => {
       const daVersao = Object.fromEntries(Object.entries(turmas)
         .map(([t, cs]) => [t, cs.filter(c => (c.versao ?? 'A') === LETRA[k])]).filter(([, cs]) => cs.length));

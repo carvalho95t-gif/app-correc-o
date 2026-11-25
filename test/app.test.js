@@ -881,3 +881,27 @@ test('corrigir digitando as respostas, sem foto', async () => {
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+// ---------- plano E: modo pesquisa ----------
+test('modo pesquisa: salva sem gabarito, conta respostas e a planilha tem a aba Pesquisa', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await page.click('#aba-prova');
+  await page.fill('#prova-nome', 'Questionário');
+  await page.fill('#prova-num', '4'); await page.dispatchEvent('#prova-num', 'change');
+  await page.check('#prova-pesquisa');
+  assert.ok(await page.isHidden('#gabarito'));
+  await page.click('#salvar-prova');
+  assert.match(await page.textContent('#prova-msg'), /Prova salva/);
+  await fotografarECorrigir(page, '9A', '01', ['A', 'B', null, 'D']);
+  assert.match(await page.textContent('#placar'), /Pesquisa: 3 de 4 questões respondidas/);
+  await page.click('#salvar-leitura');
+  await page.click('#aba-resultados');
+  assert.match(await page.locator('#resultados tbody tr').first().textContent(), /01.*3\/4/s);
+  await page.click('#analise-tela summary');
+  assert.ok(await page.isHidden('#analise-notas'));
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#baixar')]);
+  const wb = XLSX.read(await readFile(await download.path()), { type: 'buffer' });
+  assert.deepEqual(wb.SheetNames.slice(0, 2), ['9A', 'Pesquisa']);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});

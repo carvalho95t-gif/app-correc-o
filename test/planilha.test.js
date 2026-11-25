@@ -426,3 +426,17 @@ test('gabarito em CSV: uma linha por questão, uma coluna por versão; volta pel
   assert.deepEqual(gabaritoDeLinhas(uma, 'ABCDE'), ['A', 'C', '']);
   assert.deepEqual(gabaritoEmLinhas({ versoes: [{ gabarito: ['A', 'B'] }, { gabarito: ['B', 'A'] }] }), [['Questão', 'Versão A', 'Versão B'], [1, 'A', 'B'], [2, 'B', 'A']]);
 });
+
+// ---------- plano E: modo pesquisa (sem gabarito, só estatística) ----------
+test('pesquisa: aba da turma só com as respostas e aba Pesquisa com contagem e % de cada alternativa', () => {
+  const e = estadoExemplo({ gabarito: ['', '', '', ''], pesquisa: true, alternativas: 'ABCDE' });
+  const wb = releitura(montarPlanilha(XLSX, e));
+  assert.deepEqual(wb.SheetNames, ['2A', '2B', 'Pesquisa', 'Dados']);
+  const t = linhas(wb, '2B');
+  assert.deepEqual(t[0], ['Nº', 'Q1', 'Q2', 'Q3', 'Q4']);
+  assert.deepEqual(t[1], ['03', 'A', 'E', 'E', 'D']);
+  const p = linhas(wb, 'Pesquisa');
+  assert.deepEqual(p[0], ['Questão', 'Respostas', 'A', '% A', 'B', '% B', 'C', '% C', 'D', '% D', 'E', '% E', 'Branco', 'Dupla']);
+  assert.deepEqual(p[1], ['Q1', 4, 3, 75, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]);
+  assert.deepEqual(p[2], ['Q2', 4, 0, 0, 2, 50, 0, 0, 0, 0, 2, 50, 0, 0]);
+});

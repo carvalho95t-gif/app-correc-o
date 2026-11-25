@@ -117,3 +117,9 @@ Fácil (85% ou mais de acerto), média (50 a 84%) ou difícil (menos de 50%).
 
 **Discriminação**:
 Quanto a questão separa os alunos que foram bem na prova dos que foram mal. Abaixo de 0,2 a questão é marcada para revisar.
+
+**Percentil**:
+Quantos % dos outros alunos da turma tiraram nota menor. O melhor aluno tem percentil 100.
+
+**Modo pesquisa**:
+Prova sem gabarito e sem nota (um questionário): o app só conta quantos marcaram cada alternativa.

@@ -38,13 +38,17 @@
       </select>
       <label for="prova-num">Número de questões (1 a 90)</label>
       <input id="prova-num" type="number" inputmode="numeric" min="1" max="90" value="10">
+      <div class="so-prova">
       <label for="prova-valor">Valor da prova (pontos)</label>
       <input id="prova-valor" type="number" inputmode="decimal" min="0.1" step="0.1" value="10">
+      </div>
+      <label class="opcao"><input type="checkbox" id="prova-pesquisa"> Modo pesquisa: sem gabarito nem nota, o app só conta quantos marcaram cada alternativa (questionário)</label>
       <label for="prova-versoes">Versões da prova</label>
       <select id="prova-versoes">
         <option value="1">Uma versão só</option><option value="2">2 versões (A e B)</option>
         <option value="3">3 versões (A, B e C)</option><option value="4">4 versões (A a D)</option>
       </select>
+      <div class="so-prova">
       <h3>Gabarito</h3>
       <div id="versoes-gabarito" class="acoes" hidden></div>
       <p class="dica">Toque na alternativa certa de cada questão. "Anular" conta a questão como certa para todos.</p>
@@ -53,6 +57,7 @@
       <button id="baixar-gabarito">Baixar o gabarito em CSV</button>
       <label class="opcao"><input type="checkbox" id="parcial-ativar"> Pontuação parcial: alternativas erradas valem parte da questão</label>
       <div id="gabarito"></div>
+      </div>
       <details id="caderno-editor">
         <summary>Caderno de prova (opcional)</summary>
         <p class="dica">Digite ou cole cada questão e marque a alternativa certa: o gabarito acima se preenche sozinho. O app imprime o caderno junto com a folha.</p>
@@ -75,6 +80,7 @@
         <p id="embaralhar-nota" class="dica" hidden>O gabarito acima é o da versão A. As outras versões são geradas pelo app.</p>
         <button id="embaralhar-de-novo" hidden>Embaralhar de novo</button>
       </details>
+      <div class="so-prova">
       <h3>Pesos</h3>
       <p class="dica">Toda questão vale 1. Para uma questão valer mais, aplique um peso a ela.</p>
       <div class="pesos">
@@ -98,6 +104,7 @@
       <p class="dica">Opcional. Ex.: Linguagens da questão 1 à 45. A planilha mostra acertos e % de cada área.</p>
       <div id="areas"></div>
       <div class="acoes"><button id="adicionar-area">Adicionar área</button></div>
+      </div>
       <p id="prova-msg" role="status"></p>
       <div class="acoes"><button id="salvar-prova" class="primario">Salvar prova</button></div>
     </section>
