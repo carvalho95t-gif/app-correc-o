@@ -7,7 +7,7 @@ h1 { font-size: 1.2rem; margin: 0; }
 main { padding: 0 16px; max-width: 720px; margin: 0 auto; }
 h2 { font-size: 1.3rem; }
 label { display: block; font-weight: 600; margin: 12px 0 4px; }
-input:not([type=checkbox]) { width: 100%; font-size: 1rem; padding: 10px; border: 1px solid var(--borda); border-radius: 8px; }
+input:not([type=checkbox]):not([type=radio]):not([type=file]) { width: 100%; font-size: 1rem; padding: 10px; border: 1px solid var(--borda); border-radius: 8px; }
 button, .botao { font-size: 1rem; min-height: 44px; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--borda); background: white; color: inherit; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .primario { background: var(--azul); color: white; border-color: var(--azul); font-weight: 600; }
 button:disabled { opacity: .5; cursor: not-allowed; }
@@ -60,7 +60,7 @@ details#lista summary { min-height: 44px; display: flex; align-items: center; cu
 label.opcao { display: flex; align-items: center; gap: 8px; font-weight: 400; min-height: 44px; }
 label.opcao[hidden] { display: none; }
 #folha.duas { display: flex; gap: 4px; }
-select#prova-versoes, select#versao { width: 100%; font-size: 1rem; min-height: 44px; padding: 8px; border: 1px solid var(--borda); border-radius: 8px; }
+select#prova-versoes, select#versao, select#prova-alternativas { width: 100%; font-size: 1rem; min-height: 44px; padding: 8px; border: 1px solid var(--borda); border-radius: 8px; }
 #versoes-gabarito button[aria-pressed=true] { background: #111827; color: white; }
 .pesos { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
 .pesos input { width: 4.5em; }
