@@ -45,7 +45,7 @@ O que o aluno marcou numa questão: uma alternativa, em branco ou dupla marcaç�
 Questão sem nenhuma alternativa pintada. Conta como erro.
 
 **Dupla marcação**:
-Questão com duas ou mais alternativas pintadas. Conta como erro.
+Questão com duas ou mais alternativas pintadas (ou uma apagada mal: rasura). Conta como erro.
 
 **Marcação duvidosa**:
 Marcação que a leitura não consegue decidir com segurança, como uma bolinha pintada fraca ou pela metade. O professor resolve antes de salvar.
@@ -65,7 +65,19 @@ _Avoid_: Pontuação, score
 Quanto uma questão vale na nota; 1 quando o professor não muda. Questão anulada dá o peso inteiro a todos.
 
 **Pontos**:
-A soma dos pesos das questões que o aluno acertou.
+A soma, em cada questão, do peso × crédito: 1 na alternativa certa ou na questão anulada, a fração da pontuação parcial numa alternativa errada que vale parte, 0 no resto.
+
+**Pontuação parcial**:
+Fração da questão (0 a 1) que uma alternativa errada vale. Opcional, por questão.
+
+**Conceito**:
+Letra ou palavra que o professor associa a uma nota mínima, na escala do valor da prova (ex.: "A 9", "B 7").
+
+**Posição**:
+A colocação do aluno pela nota dentro da prova; empates dividem a mesma posição.
+
+**Diário**:
+A aba da planilha com turma, nº, nome, nota no valor da prova e conceito, para passar ao diário de classe.
 
 **Área**:
 Um intervalo nomeado de questões, como "Linguagens, 1 a 45", com acertos e % próprios na planilha.

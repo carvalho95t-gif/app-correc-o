@@ -242,8 +242,9 @@ $('#importar-docx').addEventListener('change', async e => {
   rascunho = { ...provaEmBranco(), nome: (lida.cabecalho.titulo ?? f.name.replace(/\.docx$/i, '')).slice(0, 80),
     ...(alternativas !== 'ABCDE' ? { alternativas } : {}), versoes: [{ gabarito, anuladas: [] }],
     caderno: { cabecalho: lida.cabecalho, questoes: [] } };
+  if (qs.every(q => q.pontos > 0)) { rascunho.pesos = qs.map(q => q.pontos); rascunho.valor = Math.round(rascunho.pesos.reduce((a, b) => a + b, 0) * 100) / 100; } // "QUESTÃO 01 (5,0 pontos)": peso = pontos, valor = soma
   for (const q of qs) {
-    const { imagem, ...resto } = q, nova = { ...resto, alternativas: Array.from({ length: alternativas.length }, (_, j) => q.alternativas[j] ?? '') };
+    const { imagem, pontos, ...resto } = q, nova = { ...resto, alternativas: Array.from({ length: alternativas.length }, (_, j) => q.alternativas[j] ?? '') };
     if (imagem) try { const dataURL = await reduzir(imagem); nova.imagem = dataURL; nova.imagem = await guardarImagem(dataURL); imagens[nova.imagem.slice(4)] = dataURL; } catch { /* sem imagem ou sem IndexedDB */ }
     rascunho.caderno.questoes.push(nova);
   }
@@ -327,6 +328,8 @@ $('#gabarito-arquivo').addEventListener('change', async e => {
   let g = [];
   try { g = gabaritoDeLinhas(await linhasDoArquivo(f), letras(rascunho).join('')); } catch { /* cai na mensagem abaixo */ }
   if (!g.length || g.length > 90) { msg.textContent = 'Não achei o gabarito nesse arquivo. Use uma coluna com a questão e outra com a letra, ou uma coluna só de letras.'; return; }
+  const cortadas = numQuestoes(rascunho) - g.length;
+  if (cortadas > 0 && (rascunho.caderno?.questoes ?? []).slice(g.length).some(q => q.enunciado || q.comando || q.alternativas.some(Boolean)) && !(await perguntar(`O arquivo tem ${g.length} questões e a prova tem ${numQuestoes(rascunho)}. As últimas ${cortadas} questões do caderno serão apagadas. Continuar?`, 'Usar o gabarito do arquivo', 'Cancelar'))) return;
   if (g.length !== numQuestoes(rascunho)) { $('#prova-num').value = g.length; $('#prova-num').dispatchEvent(new Event('change')); }
   rascunho.versoes[editando].gabarito = g;
   renderProva();
@@ -498,6 +501,7 @@ async function proximaDaFila() {
   while (fila.length) {
     const f = fila.shift();
     $('#fila-status').textContent = `Foto "${f.name}"${fila.length ? ` · faltam ${fila.length}` : ''}`;
+    leitura = null; // uma leitura que falha não pode parecer a anterior
     try { const img = await createImageBitmap(f); await lerImagem(img, img.width, img.height); } catch { leitura = null; }
     if (leitura) return; // espera o professor salvar ou descartar
     semLeitura.push(f.name); $('#erro-leitura').hidden = true;
@@ -507,7 +511,8 @@ async function proximaDaFila() {
 }
 
 // Sem foto: o professor digita as respostas do aluno.
-$('#digitar').addEventListener('click', () => {
+$('#digitar').addEventListener('click', async () => {
+  if (leitura && !$('#conferencia').hidden && !(await perguntar('Há uma correção aberta que não foi salva. Descartar e digitar outra?', 'Descartar', 'Voltar'))) return;
   $('#erro-leitura').hidden = true; $('#corrigir-msg').textContent = ''; $('#aviso-codigo').hidden = true;
   if (!$('#turma').value.trim()) { mostrarErro('Digite a turma antes de digitar as respostas.'); return; }
   const n = numQuestoes(estado.prova);
@@ -665,7 +670,7 @@ function atualizarConferencia() {
   const duplas = com('dupla'), brancos = com('branco');
   $('#pendencias').textContent = [
     versaoOk ? '' : 'Escolha a versão da prova: ela não está clara na folha.',
-    duplas.length ? `Marcação dupla ou rasura na questão ${duplas.join(', ')}: veja na foto se o aluno apagou uma delas.` : '',
+    duplas.length ? `Dupla marcação (ou rasura) na questão ${duplas.join(', ')}: veja na foto se o aluno apagou uma delas.` : '',
     brancos.length ? `Em branco: questão ${brancos.join(', ')}.` : '',
     faltam.length ? `Confira a leitura da questão ${faltam.join(', ')}: a marcação não está clara.` : '',
     numeroOk ? '' : 'Digite o número de chamada do aluno.',

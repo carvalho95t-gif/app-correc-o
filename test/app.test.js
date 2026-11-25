@@ -701,6 +701,7 @@ test('prova do Word: questões, texto-base, fonte, comando, imagem, cabeçalho e
   await page.waitForFunction(() => /importadas/.test(document.querySelector('#prova-msg').textContent));
   assert.match(await page.textContent('#prova-msg'), /3 questões importadas.*O gabarito também veio do arquivo/);
   assert.equal(await page.inputValue('#prova-nome'), 'AVALIAÇÃO DE RECUPERAÇÃO FINAL');
+  assert.equal(await page.inputValue('#prova-valor'), '15'); // 3 questões de 5,0 pontos
   assert.equal(await page.getAttribute('#gabarito button[data-q="0"][data-alt="D"]', 'aria-pressed'), 'true');
   assert.equal(await page.getAttribute('#gabarito button[data-q="2"][data-alt="B"]', 'aria-pressed'), 'true');
   const q = n => `#caderno-questoes [data-cq="${n}"]`;
@@ -737,7 +738,7 @@ test('conferência avisa marcação dupla ou rasura e questão em branco', async
   await fotografarECorrigir(page, '2A', '07', [...'ABCDEABCD', null]);
   await page.selectOption('#respostas select[data-q="1"]', 'dupla');
   const p = await page.textContent('#pendencias');
-  assert.match(p, /Marcação dupla ou rasura na questão 2/);
+  assert.match(p, /Dupla marcação \(ou rasura\) na questão 2/);
   assert.match(p, /Em branco: questão 10\./);
   assert.ok(await page.isEnabled('#salvar-leitura')); // é só um aviso
   await ctx.close();

@@ -52,7 +52,7 @@ function paragrafos(xml) {
 const INICIO_QUESTAO = /^(?:QUEST[ÃA]O|Quest[ãa]o)\s*(\d{1,3})\b\s*(?:\(([\d,.]+)\s*pontos?\))?[\s.:–-]*(.*)$/s;
 const ALTERNATIVA = /^\(?([a-eA-E])\s*[).]\s*(.*)$/s;
 const GABARITO = /^(?:\d+\.\s*)?gabarito\b/i;
-const PARECE_FONTE = /^(texto elaborado|texto adaptado|adaptado de|dispon[ií]vel em|fonte:|in:)|^[A-ZÀ-Ý]{2,}[A-ZÀ-Ý ]*,\s+[A-ZÀ-Ý]/i;
+const PARECE_FONTE = p => /^(texto elaborado|texto adaptado|adaptado de|dispon[ií]vel em|fonte:|in:)/i.test(p.texto) || /^[A-ZÀ-Ý]{2,}[A-ZÀ-Ý ]*,\s+[A-ZÀ-Ý]/.test(p.texto); // SOBRENOME em caixa alta
 
 export function montarProva(pars) {
   const cab = [], questoes = [], gabarito = {}, textoGabarito = [];
@@ -62,7 +62,7 @@ export function montarProva(pars) {
     if (GABARITO.test(p.texto)) { noGabarito = true; continue; }
     if (noGabarito) { textoGabarito.push(p.texto); continue; } // células de tabela vêm em parágrafos separados
     const q = INICIO_QUESTAO.exec(p.texto);
-    if (q) { atual = { numero: +q[1], antes: q[3].trim() ? [{ ...p, texto: q[3].trim() }] : [], alternativas: [], imagens: [...p.imagens] }; questoes.push(atual); continue; }
+    if (q) { atual = { numero: +q[1], pontos: q[2] ? +q[2].replace(',', '.') : null, antes: q[3].trim() ? [{ ...p, texto: q[3].trim() }] : [], alternativas: [], imagens: [...p.imagens] }; questoes.push(atual); continue; }
     if (!atual) { if (p.texto) cab.push(p.texto); continue; }
     const a = ALTERNATIVA.exec(p.texto);
     if (a && atual.alternativas.length < 5 && 'abcde'.indexOf(a[1].toLowerCase()) === atual.alternativas.length) { atual.alternativas.push(a[2].trim()); atual.imagens.push(...p.imagens); continue; }
@@ -81,10 +81,10 @@ export function montarProva(pars) {
 // Antes das alternativas: texto-base, fonte (alinhada à direita ou com cara de referência) e comando (o último parágrafo).
 function separar(q) {
   const ps = q.antes.filter(p => p.texto);
-  const iFonte = ps.findIndex(p => p.direita || PARECE_FONTE.test(p.texto));
+  const iDireita = ps.findIndex(p => p.direita), iFonte = iDireita >= 0 ? iDireita : ps.findIndex(PARECE_FONTE);
   const fonte = iFonte >= 0 ? ps.splice(iFonte, 1)[0].texto : '';
   const comando = ps.length > 1 ? ps.pop().texto : '';
-  return { enunciado: ps.map(p => p.texto).join('\n'), fonte, comando, alternativas: q.alternativas, imagemRef: q.imagens[0] };
+  return { pontos: q.pontos, enunciado: ps.map(p => p.texto).join('\n'), fonte, comando, alternativas: q.alternativas, imagemRef: q.imagens[0] };
 }
 
 function cabecalho(linhas) {
