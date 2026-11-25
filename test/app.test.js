@@ -933,3 +933,41 @@ test('relatório da turma: junta a nota de cada prova e baixa a planilha', async
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+// ---------- plano 6: banco de questões ----------
+test('banco de questões: guarda uma questão, acha na busca e usa em outra prova com o gabarito', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await criarProva(page, { nome: 'Origem', gabarito: 'ABCDE' });
+  await page.$eval('#caderno-editor', d => { d.open = true; });
+  await page.$eval('#cabecalho-prova', d => { d.open = true; });
+  await page.fill('[data-cab="disciplina"]', 'Filosofia');
+  const q = n => `#caderno-questoes [data-cq="${n}"]`;
+  await page.fill(`${q(2)} textarea[data-campo="enunciado"]`, 'Para Sócrates, só sei que nada sei.');
+  await page.check(`${q(2)} input[type=radio][value="D"]`);
+  for (const a of 'ABCDE') await page.fill(`${q(2)} input[data-texto="${a}"]`, `alternativa ${a}`);
+  await page.$eval('#banco', d => { d.open = true; });
+  await page.fill('#banco-assunto', 'Filosofia antiga');
+  await page.click(`${q(2)} [data-guardar]`);
+  assert.match(await page.textContent('#banco-msg'), /Questão 3 guardada/);
+  await page.click('#salvar-prova');
+  await page.click('#nova-prova');
+  await page.fill('#prova-nome', 'Destino');
+  await page.fill('#prova-num', '1'); await page.dispatchEvent('#prova-num', 'change');
+  await page.$eval('#caderno-editor', d => { d.open = true; });
+  await page.$eval('#banco', d => { d.open = true; });
+  await page.fill('#banco-busca', 'socrates');
+  assert.match(await page.textContent('#banco-lista'), /Filosofia · Filosofia antiga.*Para Sócrates/s);
+  await page.fill('#banco-busca', 'kant');
+  assert.match(await page.textContent('#banco-lista'), /Nada encontrado/);
+  await page.fill('#banco-busca', '');
+  await page.click('#banco-lista [data-usar]');
+  assert.match(await page.textContent('#banco-msg'), /como questão 1/);
+  assert.equal(await page.inputValue(`${q(0)} textarea[data-campo="enunciado"]`), 'Para Sócrates, só sei que nada sei.');
+  assert.equal(await page.getAttribute('#gabarito button[data-q="0"][data-alt="D"]', 'aria-pressed'), 'true');
+  await page.click('#banco-lista [data-usar]'); // de novo: vira a questão 2
+  assert.equal(await page.inputValue('#prova-num'), '2');
+  await page.click('#salvar-prova');
+  assert.match(await page.textContent('#prova-msg'), /Prova salva/);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});

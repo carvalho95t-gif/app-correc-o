@@ -3,7 +3,7 @@ import { montarLayout, montarQuadro, MAX_QUADRO } from './src/layout.js';
 import { folhaSVG, quadroSVG } from './src/folha.js';
 import { qrSVG, textoQR, lerQR } from './src/qr.js';
 import { carregar, salvar, definirProva, arquivoInicial, ativo, comAtivo, escolher, novaProva, apagarProva, listar,
-  acharPorNome, validarAreas, registrar, chave, remover, marcarExportado, definirLista, nomeDo, versaoDe } from './src/estado.js';
+  acharPorNome, validarAreas, registrar, chave, remover, marcarExportado, definirLista, nomeDo, versaoDe, guardarNoBanco, tirarDoBanco, buscarNoBanco } from './src/estado.js';
 import { montarPlanilha, nomeArquivo, porTurma, notaDe, lerPlanilha, temParciais, lerConceitos, conceitoDe, posicoes, percentis, lerPesos, analiseDaProva, listaDeLinhas, gabaritoDeLinhas, gabaritoEmLinhas, relatorioDaTurma } from './src/planilha.js';
 import { paraCinza, lerFolha, homografia, aplicar, acharMarcadores, quadroPronto, razaoDe, poucaLuz, reflexo } from './src/leitor.js';
 import { codificar } from './src/codigo.js';
@@ -139,12 +139,58 @@ function renderCadernoEditor() {
       <label>Comando <textarea rows="2" data-campo="comando">${esc(q.comando ?? '')}</textarea></label></details>
       ${q.imagem ? `<img class="miniatura" src="${esc(resolver(imagens, q.imagem))}" alt="Imagem da questão ${i + 1}"><button data-tirar-imagem>Remover imagem</button>`
         : `<label class="botao">Adicionar imagem<input type="file" accept="image/*" class="oculto" aria-label="Imagem da questão ${i + 1}"></label>`}
+      <button data-guardar aria-label="Guardar a questão ${i + 1} no banco">Guardar no banco</button>
       ${letras(rascunho).map((a, j) => `<div class="alt">
         <input type="radio" name="certa-${i}" value="${a}" ${g[i] === a ? 'checked' : ''} aria-label="Questão ${i + 1}: ${a} é a certa">
         <b>${a})</b><input type="text" data-texto="${a}" value="${esc(q.alternativas[j] ?? '')}" aria-label="Questão ${i + 1}, texto da alternativa ${a}">
       </div>`).join('')}
     </div>`).join('');
 }
+// ---------- banco de questões ----------
+const vazia = q => !q.enunciado && !q.comando && !q.alternativas.some(Boolean) && !q.imagem;
+function guardar(indices) {
+  ajustarCaderno();
+  const g = rascunho.versoes[0].gabarito, disciplina = rascunho.caderno.cabecalho?.disciplina ?? '', assunto = $('#banco-assunto').value.trim();
+  const qs = indices.filter(i => !vazia(rascunho.caderno.questoes[i]));
+  let a = arquivo;
+  for (const i of qs) {
+    const { enunciado = '', fonte = '', comando = '', alternativas, imagem } = rascunho.caderno.questoes[i];
+    a = guardarNoBanco(a, { enunciado, fonte, comando, alternativas: [...alternativas], certa: g[i] ?? '', disciplina, assunto, ...(imagem ? { imagem } : {}) });
+  }
+  gravar(a);
+  $('#banco-msg').textContent = qs.length ? `${qs.length === 1 ? `Questão ${qs[0] + 1} guardada` : `${qs.length} questões guardadas`} no banco.` : 'Escreva a questão antes de guardar.';
+  renderBanco();
+}
+function renderBanco() {
+  const itens = buscarNoBanco(arquivo.banco ?? [], $('#banco-busca').value);
+  $('#banco-lista').innerHTML = !(arquivo.banco ?? []).length ? '<p class="dica">O banco está vazio.</p>' : itens.map(q => `
+    <div class="item-banco"><p><b>${esc([q.disciplina, q.assunto].filter(Boolean).join(' · ') || 'Sem assunto')}</b></p>
+      <p>${esc((q.enunciado || q.comando).slice(0, 200))}${(q.enunciado || q.comando).length > 200 ? '…' : ''}</p>
+      <div class="acoes"><button data-usar="${q.id}">Usar nesta prova</button><button data-tirar="${q.id}">Tirar do banco</button></div></div>`).join('') || '<p class="dica">Nada encontrado.</p>';
+}
+$('#guardar-todas').addEventListener('click', () => guardar(rascunho.versoes[0].gabarito.map((_, i) => i)));
+$('#banco-busca').addEventListener('input', renderBanco);
+$('#banco').addEventListener('toggle', renderBanco);
+$('#banco-lista').addEventListener('click', async e => {
+  const { usar, tirar } = e.target.dataset;
+  if (tirar) {
+    if (!(await perguntar('Tirar esta questão do banco? As provas que já usam a questão continuam com ela.', 'Tirar do banco', 'Manter'))) return;
+    gravar(tirarDoBanco(arquivo, tirar)); renderBanco(); return;
+  }
+  const q = (arquivo.banco ?? []).find(x => x.id === usar);
+  if (!q) return;
+  ajustarCaderno();
+  let i = rascunho.caderno.questoes.findIndex(vazia);
+  if (i < 0) {
+    if (numQuestoes(rascunho) >= 90) { $('#banco-msg').textContent = 'A prova já tem 90 questões.'; return; }
+    i = numQuestoes(rascunho); $('#prova-num').value = i + 1; $('#prova-num').dispatchEvent(new Event('change'));
+  }
+  const L = letras(rascunho);
+  rascunho.caderno.questoes[i] = { enunciado: q.enunciado, fonte: q.fonte, comando: q.comando, alternativas: L.map((_, j) => q.alternativas[j] ?? ''), ...(q.imagem ? { imagem: q.imagem } : {}) };
+  if (L.includes(q.certa)) rascunho.versoes[0].gabarito[i] = q.certa;
+  renderProva();
+  $('#banco-msg').textContent = `A questão entrou como questão ${i + 1}. Confira e salve a prova.`;
+});
 $('#cabecalho-prova').addEventListener('input', e => {
   if (!e.target.dataset.cab) return;
   ajustarCaderno();
@@ -156,6 +202,7 @@ $('#caderno-questoes').addEventListener('input', e => {
   else if (e.target.dataset.texto) q.alternativas[letras(rascunho).indexOf(e.target.dataset.texto)] = e.target.value;
 });
 $('#caderno-questoes').addEventListener('click', e => {
+  if (e.target.matches('[data-guardar]')) { guardar([+e.target.closest('[data-cq]').dataset.cq]); return; }
   if (!e.target.matches('[data-tirar-imagem]')) return;
   // shortcut: a imagem tirada continua no IndexedDB até apagar a prova; limpar órfãs se o espaço virar problema.
   delete rascunho.caderno.questoes[+e.target.closest('[data-cq]').dataset.cq].imagem;
@@ -291,7 +338,7 @@ $('#apagar-prova').addEventListener('click', async () => {
       : `Apagar a prova "${nome}" e todas as correções dela?`, 'Apagar prova', 'Manter');
     if (!ok) return;
     // Imagens usadas por outra prova (cópia feita com "Duplicar") ficam.
-    const outras = new Set(Object.entries(arquivo.provas).filter(([id]) => id !== arquivo.ativa).flatMap(([, e]) => refsDe(e.prova)));
+    const outras = new Set([...Object.entries(arquivo.provas).filter(([id]) => id !== arquivo.ativa).flatMap(([, e]) => refsDe(e.prova)), ...(arquivo.banco ?? []).map(q => q.imagem).filter(ehRef)]);
     apagarImagens(refsDe(estado.prova).filter(r => !outras.has(r))).catch(() => {});
     gravar(apagarProva(arquivo, arquivo.ativa));
   }

@@ -117,3 +117,5 @@ details#cabecalho-prova input, .cq input[data-campo] { width: 100%; font: inheri
 .rolagem { overflow-x: auto; }
 table.analise td, table.analise th { text-align: center; padding: 4px 6px; }
 .certa-analise { font-weight: 700; outline: 2px solid var(--verde); outline-offset: -2px; }
+.item-banco { border: 1px solid #cbd5e1; border-radius: 8px; padding: 0.5rem 0.75rem; margin: 0.5rem 0; }
+.item-banco p { margin: 0.25rem 0; }

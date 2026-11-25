@@ -123,3 +123,9 @@ Quantos % dos outros alunos da turma tiraram nota menor. O melhor aluno tem perc
 
 **Modo pesquisa**:
 Prova sem gabarito e sem nota (um questionário): o app só conta quantos marcaram cada alternativa.
+
+**Banco de questões**:
+Questões guardadas neste aparelho (com disciplina e assunto) para usar em outras provas.
+
+**Relatório da turma**:
+Planilha com a nota de cada aluno da turma em todas as provas do aparelho, a soma e a média de 0 a 10 (soma ÷ soma dos valores × 10).

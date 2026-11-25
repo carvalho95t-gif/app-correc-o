@@ -73,6 +73,17 @@
           <label>Instruções extras (uma por linha) <textarea rows="2" data-cab="instrucoes" placeholder="O tempo de prova será informado pelo(a) professor(a)."></textarea></label>
         </details>
         <div id="caderno-questoes"></div>
+        <details id="banco">
+          <summary>Banco de questões</summary>
+          <p class="dica">Guarde questões para usar em outras provas. Elas ficam neste aparelho, com a disciplina do cabeçalho e o assunto abaixo.</p>
+          <label for="banco-assunto">Assunto das questões que você guardar</label>
+          <input id="banco-assunto" autocomplete="off" placeholder="Ex.: Ética de Kant">
+          <button id="guardar-todas">Guardar todas as questões desta prova</button>
+          <label for="banco-busca">Buscar no banco</label>
+          <input id="banco-busca" type="search" autocomplete="off" placeholder="Texto, disciplina ou assunto">
+          <p id="banco-msg" role="status"></p>
+          <div id="banco-lista"></div>
+        </details>
         <h4>Versões embaralhadas</h4>
         <p class="dica">Escolha 2 a 4 versões em "Versões" acima. O app troca a ordem e gera o gabarito de cada versão.</p>
         <label class="opcao"><input type="checkbox" id="embaralhar-questoes"> Embaralhar a ordem das questões</label>
