@@ -22,9 +22,12 @@
       <select id="prova-ativa"></select>
       <div class="acoes">
         <button id="nova-prova">Nova prova</button>
+        <button id="duplicar-prova">Duplicar esta prova</button>
         <button id="apagar-prova">Apagar esta prova</button>
         <label for="importar" class="botao">Restaurar de uma planilha</label>
         <input id="importar" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="oculto">
+        <label for="importar-docx" class="botao">Criar prova de um arquivo Word</label>
+        <input id="importar-docx" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="oculto">
       </div>
       <label for="prova-nome">Nome da prova</label>
       <input id="prova-nome" autocomplete="off" placeholder="Ex.: Simulado 1 – Matemática">
@@ -35,21 +38,52 @@
       </select>
       <label for="prova-num">Número de questões (1 a 90)</label>
       <input id="prova-num" type="number" inputmode="numeric" min="1" max="90" value="10">
+      <div class="so-prova">
       <label for="prova-valor">Valor da prova (pontos)</label>
       <input id="prova-valor" type="number" inputmode="decimal" min="0.1" step="0.1" value="10">
+      </div>
+      <label class="opcao"><input type="checkbox" id="prova-pesquisa"> Modo pesquisa: sem gabarito nem nota, o app só conta quantos marcaram cada alternativa (questionário)</label>
       <label for="prova-versoes">Versões da prova</label>
       <select id="prova-versoes">
         <option value="1">Uma versão só</option><option value="2">2 versões (A e B)</option>
         <option value="3">3 versões (A, B e C)</option><option value="4">4 versões (A a D)</option>
       </select>
+      <div class="so-prova">
       <h3>Gabarito</h3>
       <div id="versoes-gabarito" class="acoes" hidden></div>
       <p class="dica">Toque na alternativa certa de cada questão. "Anular" conta a questão como certa para todos.</p>
+      <label for="gabarito-arquivo" class="botao">Trazer o gabarito de uma planilha ou CSV</label>
+      <input id="gabarito-arquivo" type="file" accept=".xlsx,.xls,.csv,.ods" class="oculto">
+      <button id="baixar-gabarito">Baixar o gabarito em CSV</button>
+      <label class="opcao"><input type="checkbox" id="parcial-ativar"> Pontuação parcial: alternativas erradas valem parte da questão</label>
       <div id="gabarito"></div>
+      </div>
       <details id="caderno-editor">
         <summary>Caderno de prova (opcional)</summary>
         <p class="dica">Digite ou cole cada questão e marque a alternativa certa: o gabarito acima se preenche sozinho. O app imprime o caderno junto com a folha.</p>
+        <details id="cabecalho-prova">
+          <summary>Cabeçalho da prova</summary>
+          <label>Escola (uma linha por linha do cabeçalho; a última sai maior)<textarea rows="4" data-cab="escola" placeholder="GOVERNO DO ESTADO...&#10;ESCOLA ESTADUAL..."></textarea></label>
+          <label>Título <input data-cab="titulo" placeholder="Avaliação de Recuperação Final"></label>
+          <label>Subtítulo <input data-cab="subtitulo" placeholder="Filosofia – 2ª série do Ensino Médio – 2026"></label>
+          <label>Nome curto (topo das páginas) <input data-cab="nomeCurto" placeholder="Recuperação Final – Filosofia – 2ª série"></label>
+          <label>Professor <input data-cab="professor"></label>
+          <label>Disciplina <input data-cab="disciplina"></label>
+          <label>Série <input data-cab="serie"></label>
+          <label>Instruções extras (uma por linha) <textarea rows="2" data-cab="instrucoes" placeholder="O tempo de prova será informado pelo(a) professor(a)."></textarea></label>
+        </details>
         <div id="caderno-questoes"></div>
+        <details id="banco">
+          <summary>Banco de questões</summary>
+          <p class="dica">Guarde questões para usar em outras provas. Elas ficam neste aparelho, com a disciplina do cabeçalho e o assunto abaixo.</p>
+          <label for="banco-assunto">Assunto das questões que você guardar</label>
+          <input id="banco-assunto" autocomplete="off" placeholder="Ex.: Ética de Kant">
+          <button id="guardar-todas">Guardar todas as questões desta prova</button>
+          <label for="banco-busca">Buscar no banco</label>
+          <input id="banco-busca" type="search" autocomplete="off" placeholder="Texto, disciplina ou assunto">
+          <p id="banco-msg" role="status"></p>
+          <div id="banco-lista"></div>
+        </details>
         <h4>Versões embaralhadas</h4>
         <p class="dica">Escolha 2 a 4 versões em "Versões" acima. O app troca a ordem e gera o gabarito de cada versão.</p>
         <label class="opcao"><input type="checkbox" id="embaralhar-questoes"> Embaralhar a ordem das questões</label>
@@ -57,6 +91,7 @@
         <p id="embaralhar-nota" class="dica" hidden>O gabarito acima é o da versão A. As outras versões são geradas pelo app.</p>
         <button id="embaralhar-de-novo" hidden>Embaralhar de novo</button>
       </details>
+      <div class="so-prova">
       <h3>Pesos</h3>
       <p class="dica">Toda questão vale 1. Para uma questão valer mais, aplique um peso a ela.</p>
       <div class="pesos">
@@ -66,10 +101,21 @@
         <button id="aplicar-peso">Aplicar</button>
       </div>
       <p id="pesos-resumo" role="status"></p>
+      <details id="pesos-colar">
+        <summary>Colar a lista de pesos</summary>
+        <p class="dica">Um peso por questão, na ordem, separados por espaço ou um por linha (pode colar a coluna de uma planilha). Ex.: "2 2 1 1,5".</p>
+        <label for="pesos-lista">Pesos</label>
+        <textarea id="pesos-lista" rows="2"></textarea>
+        <div class="acoes"><button id="aplicar-lista-pesos">Usar estes pesos</button><button id="pesos-iguais">Todas com o mesmo peso</button></div>
+      </details>
+      <h3>Conceitos</h3>
+      <p class="dica">Opcional. Um conceito por linha com a nota mínima, na escala do valor da prova. Ex.: "A 9", "B 7", "C 5", "D 0".</p>
+      <textarea id="prova-conceitos" rows="3" placeholder="A 9&#10;B 7&#10;C 5&#10;D 0"></textarea>
       <h3>Áreas</h3>
       <p class="dica">Opcional. Ex.: Linguagens da questão 1 à 45. A planilha mostra acertos e % de cada área.</p>
       <div id="areas"></div>
       <div class="acoes"><button id="adicionar-area">Adicionar área</button></div>
+      </div>
       <p id="prova-msg" role="status"></p>
       <div class="acoes"><button id="salvar-prova" class="primario">Salvar prova</button></div>
     </section>
@@ -82,6 +128,7 @@
         <label id="opcao-duas" class="opcao"><input type="checkbox" id="duas-por-pagina"> Duas folhas por página (corte a folha ao meio)</label>
         <button id="imprimir" class="primario">Imprimir folha</button>
         <button id="imprimir-caderno" hidden>Imprimir caderno e folha</button>
+        <p id="aviso-quadro" class="aviso" hidden>Esta prova tem mais de 30 questões: o gabarito não cabe no quadro da página 1 e sai na folha de respostas separada.</p>
         <div id="folha"></div>
         <div id="caderno"></div>
       </div>
@@ -96,6 +143,12 @@
         <button id="abrir-camera" class="primario">Corrigir com a câmera</button>
         <label for="foto" class="botao">Fotografar folha</label>
         <input id="foto" type="file" accept="image/*" capture="environment" class="oculto">
+        <div class="acoes">
+          <label for="fotos" class="botao">Escolher fotos da galeria</label>
+          <input id="fotos" type="file" accept="image/*" multiple class="oculto">
+          <button id="digitar">Digitar as respostas</button>
+        </div>
+        <p id="fila-status" role="status"></p>
         <p class="dica">Enquadre a folha inteira, com os 4 quadrados pretos visíveis, sobre uma mesa e com boa luz.</p>
         <div id="camera" hidden>
           <video id="video" playsinline muted aria-label="Imagem da câmera"></video>
@@ -110,7 +163,7 @@
           <h3>Confira a leitura</h3>
           <p id="aviso-codigo" class="erro" role="alert" hidden></p>
           <canvas id="canvas" aria-label="Foto da folha com as marcações lidas"></canvas>
-          <p class="legenda"><span class="ok">●</span> certa <span class="erro">●</span> errada <span class="aviso">●</span> confira</p>
+          <p class="legenda" id="legenda-foto"><span class="ok">●</span> certa <span class="erro">●</span> errada <span class="aviso">●</span> confira</p>
           <div id="versao-campo" hidden>
             <label for="versao">Versão da prova</label>
             <select id="versao"></select>
@@ -131,12 +184,28 @@
       <h2 id="t-resultados">Resultados</h2>
       <p id="resultados-vazio" class="dica">Nenhuma correção ainda. Fotografe a primeira folha na aba Corrigir.</p>
       <div id="resultados"></div>
+      <details id="analise-tela" hidden>
+        <summary>Análise das questões e das notas</summary>
+        <div id="analise-notas"></div>
+        <div id="analise-questoes"></div>
+      </details>
       <button id="baixar" class="primario">Baixar planilha</button>
+      <details id="relatorio">
+        <summary>Relatório da turma (várias provas)</summary>
+        <p class="dica">Junta as notas da turma em todas as provas deste aparelho: uma coluna por prova, a soma e a média de 0 a 10.</p>
+        <label for="relatorio-turma">Turma</label>
+        <input id="relatorio-turma" autocomplete="off" placeholder="Ex.: 2A">
+        <label class="opcao"><input type="checkbox" id="relatorio-falta-zero"> Prova que o aluno não fez conta como zero na média</label>
+        <p id="relatorio-msg" role="status"></p>
+        <button id="baixar-relatorio">Baixar relatório</button>
+      </details>
       <details id="lista">
         <summary>Lista de chamada (nomes dos alunos)</summary>
         <p class="dica">Cole um nome por linha, na ordem da chamada. Se preferir, comece a linha pelo número (ex.: "07 Ana Souza").</p>
         <label for="lista-turma">Turma</label>
         <input id="lista-turma" autocomplete="off" placeholder="Ex.: 2A">
+        <label for="lista-arquivo" class="botao">Trazer os nomes de uma planilha ou CSV</label>
+        <input id="lista-arquivo" type="file" accept=".xlsx,.xls,.csv,.ods" class="oculto">
         <label for="lista-nomes">Nomes</label>
         <textarea id="lista-nomes" rows="8"></textarea>
         <p id="lista-msg" role="status"></p>

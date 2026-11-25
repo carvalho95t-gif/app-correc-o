@@ -143,3 +143,19 @@ test('quadro pronto: folha mexendo ou marcadores perdidos não capturam', () => 
   const parada = quadro({ rotacaoGraus: 2 });
   assert.equal(quadroPronto([parada, null, parada], 480), false);
 });
+
+// ---------- plano: aviso de pouca luz na câmera ----------
+import { poucaLuz } from '../src/leitor.js';
+test('pouca luz: imagem escura avisa, folha bem iluminada não', () => {
+  assert.equal(poucaLuz({ data: new Uint8Array(10000).fill(40) }), true);
+  assert.equal(poucaLuz(gerarFoto(layout, { numero: '05', respostas })), false);
+});
+
+import { reflexo } from '../src/leitor.js';
+test('reflexo: mancha estourada de branco na folha avisa, folha normal não', () => {
+  const foto = gerarFoto(layout, { numero: '05', respostas });
+  assert.equal(reflexo(foto), false);
+  const com = { ...foto, data: foto.data.slice() };
+  com.data.fill(255, 0, Math.round(com.data.length * 0.1));
+  assert.equal(reflexo(com), true);
+});

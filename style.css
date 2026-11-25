@@ -14,6 +14,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 :focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }
 .acoes { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; }
 .dica { color: #4b5563; font-size: .9rem; }
+#tela-prova.em-pesquisa .so-prova { display: none; }
 .oculto { position: absolute; width: 1px; height: 1px; opacity: 0; }
 label.botao { margin-top: 16px; width: 100%; }
 .linha { display: flex; align-items: center; gap: 4px; padding: 4px 0; border-bottom: 1px solid #e5e7eb; }
@@ -42,7 +43,8 @@ dialog { border: 0; border-radius: 12px; max-width: 360px; }
   header, nav, main > section > *:not(#folha-pronta), #folha-pronta > *:not(#folha):not(#caderno), dialog { display: none !important; }
   body:not(.com-caderno) #caderno, body.com-caderno #folha { display: none !important; }
   .folha-impressa svg { display: block; width: 210mm; height: 297mm; break-after: page; }
-  .caderno-pagina { break-after: page; box-shadow: none; margin: 0; }
+  /* !important: a regra de tela vem depois e somaria o padding às margens do @page */
+  #caderno .caderno-pagina { break-after: page; box-shadow: none !important; margin: 0 !important; padding: 0 !important; }
   body, main { padding: 0; margin: 0; background: white; }
   #tela-folha { display: block !important; }
   main > section:not(#tela-folha) { display: none !important; }
@@ -67,12 +69,53 @@ details#caderno-editor { margin: 16px 0; background: white; padding: 8px 12px; b
 .cq { border-top: 1px solid #e5e7eb; padding: 8px 0; }
 .cq .alt { display: flex; gap: 6px; align-items: center; margin: 4px 0; }
 .cq .alt input[type=text] { flex: 1; }
-#caderno .caderno-pagina { background: white; padding: 16mm; margin: 12px 0; font-family: Arial, sans-serif; font-size: 11pt; box-shadow: 0 1px 4px #0002; }
-.caderno-pagina h1 { font-size: 14pt; margin: 0 0 6px; }
-.caderno-pagina ol.questoes { list-style: none; padding: 0; columns: 2; column-gap: 8mm; }
-.caderno-pagina .questao { break-inside: avoid; margin-bottom: 10px; }
+#caderno .caderno-pagina { background: white; padding: 30mm 20mm 20mm 30mm; margin: 12px 0; font: 12pt/1.5 "Times New Roman", Times, serif; color: black; box-shadow: 0 1px 4px #0002; text-align: justify; hyphens: auto; }
+.caderno-pagina .capa { page: capa; text-align: center; }
+.caderno-pagina .escola { font-weight: bold; font-size: 12pt; line-height: 1.15; border-bottom: 1px solid black; padding-bottom: 4px; margin-bottom: 8px; }
+.caderno-pagina .escola .nome-escola { font-size: 14pt; }
+.caderno-pagina h1 { font-size: 12pt; margin: 4px 0 0; text-transform: uppercase; }
+.caderno-pagina .subtitulo { font-weight: bold; text-transform: uppercase; margin: 2px 0 8px; }
+.caderno-pagina table.identificacao { width: 100%; border-collapse: collapse; text-align: left; margin-bottom: 14px; }
+.caderno-pagina table.identificacao td { border: 1px solid black; padding: 2px 6px; font-size: 11pt; white-space: nowrap; }
+.caderno-pagina table.identificacao td:first-child { width: 50%; }
+.caderno-pagina .linha { display: inline-block; width: 70%; border-bottom: 1px solid black; }
+.caderno-pagina .instrucoes { border: 1px solid black; background: #f0f0f0; padding: 4px 8px; text-align: justify; font-size: 10pt; line-height: 1.15; margin-bottom: 12px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.caderno-pagina .instrucoes h2 { font-size: 12pt; text-align: center; margin: 0 0 2px; text-transform: uppercase; }
+.caderno-pagina .instrucoes ol { margin: 0; padding-left: 1.6em; }
+.caderno-pagina .quadro-gabarito { margin: 0 0 10px; }
+.caderno-pagina .quadro-gabarito svg { display: block; width: 100%; max-width: 174mm; height: auto; margin: 0 auto; }
+.caderno-pagina .assinaturas { display: flex; gap: 12mm; margin-top: 14mm; font-size: 10pt; }
+.caderno-pagina .assinaturas div { flex: 1; border-top: 1px solid black; padding-top: 2px; text-align: center; }
+.caderno-pagina ol.questoes { list-style: none; padding: 0; margin: 0; page: questoes; break-before: page; column-count: 2; column-gap: 8mm; background: linear-gradient(black, black) center / 0.5pt 100% no-repeat; box-decoration-break: clone; -webkit-box-decoration-break: clone; -webkit-print-color-adjust: exact; print-color-adjust: exact; } /* linha do meio como fundo: o column-rule do Chromium deixa um ponto no fim da página 1 */
+.caderno-pagina .questao { margin-bottom: 12pt; } /* como no Gradepen, a questão pode continuar na outra coluna */
+.caderno-pagina .questao h3 { break-after: avoid; }
+.caderno-pagina ol.alternativas li { break-inside: avoid; }
+.caderno-pagina .questao h3 { font-size: 12pt; margin: 0 0 6pt; text-align: left; }
+.caderno-pagina .questao h3 small { font-weight: normal; font-size: 10pt; }
+/* Texto-base como o texto normal (12 pt, 1,5), sem formato de citação longa: pedido do professor. */
+.caderno-pagina .texto-base { margin: 0; text-indent: 12.5mm; }
+.caderno-pagina .fonte { margin: 0; text-align: right; }
+.caderno-pagina .comando { font-weight: bold; margin: 6pt 0 4pt; text-indent: 12.5mm; }
 .caderno-pagina ol.alternativas { list-style: none; padding-left: 0; margin: 4px 0; }
-.caderno-pagina img { max-width: 100%; }
+.caderno-pagina ol.alternativas li { margin: 0; padding-left: 1.5em; text-indent: -1.5em; }
+.caderno-pagina img { max-width: 100%; display: block; margin: 6px auto; }
 .miniatura { display: block; max-width: 160px; margin: 6px 0; border: 1px solid var(--borda); }
 .folha-impressa svg { width: 100%; height: auto; border: 1px solid var(--borda); }
 #embaralhar-nota { white-space: pre-line; }
+details#cabecalho-prova { margin: 8px 0; }
+details#cabecalho-prova summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+details#cabecalho-prova label, .cq label { display: block; margin: 6px 0; }
+details#cabecalho-prova input, .cq input[data-campo] { width: 100%; font: inherit; padding: 8px; border: 1px solid var(--borda); border-radius: 8px; }
+.parciais { display: flex; flex-wrap: wrap; gap: 6px 10px; padding: 2px 0 8px 28px; font-size: .9rem; border-bottom: 1px solid #e5e7eb; }
+.parciais input { width: 3.6em; }
+.parcial-certa { color: var(--verde); font-weight: 600; }
+.histograma { display: flex; align-items: flex-end; gap: 4px; height: 140px; padding-top: 18px; }
+.histograma > div { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; position: relative; }
+.histograma span { display: block; width: 100%; background: var(--azul); border-radius: 3px 3px 0 0; min-height: 1px; }
+.histograma b { position: absolute; top: -16px; font-size: .8rem; }
+.histograma small { font-size: .7rem; color: #6b7280; }
+.rolagem { overflow-x: auto; }
+table.analise td, table.analise th { text-align: center; padding: 4px 6px; }
+.certa-analise { font-weight: 700; outline: 2px solid var(--verde); outline-offset: -2px; }
+.item-banco { border: 1px solid #cbd5e1; border-radius: 8px; padding: 0.5rem 0.75rem; margin: 0.5rem 0; }
+.item-banco p { margin: 0.25rem 0; }

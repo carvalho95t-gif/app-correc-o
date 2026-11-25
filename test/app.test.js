@@ -343,6 +343,30 @@ test('peso por questão: peso 2 nas questões 1 a 5 muda a nota da conferência'
   await ctx.close();
 });
 
+test('pesos colados de uma lista e "todas com o mesmo peso"', async () => {
+  const { ctx, page } = await abrirApp();
+  await criarProva(page);
+  await page.$eval('#pesos-colar', d => { d.open = true; });
+  await page.fill('#pesos-lista', '2 2 2');
+  await page.click('#aplicar-lista-pesos');
+  assert.match(await page.textContent('#pesos-resumo'), /3 pesos e a prova tem 10/);
+  await page.fill('#pesos-lista', '2\n2\n2\n2\n2\n1\n1\n1\n1\n1');
+  await page.click('#aplicar-lista-pesos');
+  assert.match(await page.textContent('#pesos-resumo'), /1 a 5 valem 2/);
+  await page.click('#salvar-prova');
+  await fotografarECorrigir(page, '2A', '01', [...'ABCDEEEEEE']);
+  assert.match(await page.textContent('#placar'), /nota 7,3/);
+  await page.click('#descartar');
+  await page.click('#aba-prova');
+  await page.$eval('#pesos-colar', d => { d.open = true; });
+  await page.click('#pesos-iguais');
+  assert.match(await page.textContent('#pesos-resumo'), /Todas as questões valem 1/);
+  await page.click('#salvar-prova');
+  await fotografarECorrigir(page, '2A', '01', [...'ABCDEEEEEE']);
+  assert.match(await page.textContent('#placar'), /nota 6,0/);
+  await ctx.close();
+});
+
 test('prova A–D: gabarito, folha e conferência só com A a D', async () => {
   const { ctx, page } = await abrirApp();
   await criarProva(page, { gabarito: 'ABCDABCD', alternativas: 'ABCD' });
@@ -473,15 +497,15 @@ test('caderno: digitar 3 questões, gabarito sai do caderno e a impressão traz 
   await page.click('#aba-folha');
   const texto = await page.textContent('#caderno');
   assert.match(texto, /Caderno 1/);
-  assert.match(texto, /1\..*Enunciado da questão 1 <b>/s);
-  assert.match(texto, /B\).*opção B1/s);
+  assert.match(texto, /QUESTÃO 01.*Enunciado da questão 1 <b>/s);
+  assert.match(texto, /b\).*opção B1/s);
   assert.match(await page.innerHTML('#caderno'), /questão 1 &lt;b&gt;/); // texto digitado não vira HTML
   assert.ok(await page.isVisible('#imprimir-caderno'));
   assert.equal(await page.locator('#folha svg').count(), 1);
   await ctx.close();
 });
 
-test('impressão: folha em 1 página e caderno curto + folha em 2 páginas', async () => {
+test('impressão: folha em 1 página e prova curta sem folha separada', async () => {
   const paginas = pdf => (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
   const { ctx, page } = await abrirApp();
   await criarProva(page, { gabarito: 'ABCDE' });
@@ -489,11 +513,58 @@ test('impressão: folha em 1 página e caderno curto + folha em 2 páginas', asy
   assert.equal(paginas(await page.pdf({ preferCSSPageSize: true })), 1);
   await page.click('#aba-prova');
   await page.click('#caderno-editor summary');
-  for (let i = 0; i < 5; i++) await page.fill(`#caderno-questoes [data-cq="${i}"] textarea`, 'Texto '.repeat(40));
+  for (let i = 0; i < 5; i++) await page.fill(`#caderno-questoes [data-cq="${i}"] textarea[data-campo="enunciado"]`, 'Texto '.repeat(15));
   await page.click('#salvar-prova');
   await page.click('#aba-folha');
   await page.evaluate(() => { document.querySelector('#folha').before(document.querySelector('#caderno')); document.body.classList.add('com-caderno'); });
-  assert.equal(paginas(await page.pdf({ preferCSSPageSize: true })), 2);
+  assert.equal(paginas(await page.pdf({ preferCSSPageSize: true })), 2); // página 1 com o quadro do gabarito, questões em duas colunas
+  await ctx.close();
+});
+
+// ---------- prova impressa 01: modelo do professor ----------
+test('prova impressa: cabeçalho, identificação, instruções e questão no modelo do professor', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await page.click('#aba-prova');
+  await page.fill('#prova-nome', 'Recuperação');
+  await page.fill('#prova-num', '20');
+  await page.dispatchEvent('#prova-num', 'change');
+  await page.fill('#prova-valor', '100');
+  await page.click('#caderno-editor summary');
+  await page.click('#cabecalho-prova summary');
+  await page.fill('[data-cab="escola"]', 'GOVERNO DO ESTADO\nESCOLA ESTADUAL <X>');
+  await page.fill('[data-cab="titulo"]', 'Avaliação de Recuperação Final');
+  await page.fill('[data-cab="subtitulo"]', 'Filosofia – 2ª série');
+  await page.fill('[data-cab="professor"]', 'Tiago');
+  await page.fill('[data-cab="disciplina"]', 'Filosofia');
+  await page.fill('[data-cab="serie"]', '2ª');
+  await page.fill('[data-cab="instrucoes"]', 'O tempo de prova será informado.');
+  for (let i = 0; i < 20; i++) {
+    await page.fill(`#caderno-questoes [data-cq="${i}"] textarea[data-campo="enunciado"]`, `Texto-base ${i + 1}`);
+    await page.check(`#caderno-questoes [data-cq="${i}"] input[type=radio][value="A"]`);
+  }
+  await page.click('#caderno-questoes [data-cq="0"] .fonte-comando summary');
+  await page.fill('#caderno-questoes [data-cq="0"] input[data-campo="fonte"]', 'Texto elaborado a partir de Montaigne.');
+  await page.fill('#caderno-questoes [data-cq="0"] textarea[data-campo="comando"]', 'Montaigne sugere que:');
+  await page.click('#salvar-prova');
+  assert.match(await page.textContent('#prova-msg'), /Prova salva/);
+  await page.click('#aba-folha');
+  const html = await page.innerHTML('#caderno'), texto = await page.textContent('#caderno');
+  assert.match(html, /class="nome-escola">ESCOLA ESTADUAL &lt;X&gt;/);
+  assert.match(texto, /Avaliação de Recuperação Final/);
+  assert.match(texto, /Professor:\s*Tiago/);
+  assert.match(texto, /Nota:.*\/ 100,0/);
+  assert.match(texto, /20 questões objetivas/);
+  assert.match(texto, /Cada questão vale 5,0 pontos, totalizando 100,0 pontos/);
+  assert.match(texto, /O tempo de prova será informado/);
+  assert.match(texto, /QUESTÃO 01\s*\(5,0 pontos\)/);
+  assert.match(html, /class="fonte">Texto elaborado a partir de Montaigne\./);
+  assert.match(html, /class="comando">Montaigne sugere que:/);
+  assert.match(html, /Recuperação   " counter\(page\)/);
+  // depois de recarregar, o cabeçalho continua no editor
+  await page.reload();
+  await page.click('#aba-prova');
+  assert.equal(await page.inputValue('[data-cab="professor"]'), 'Tiago');
+  assert.deepEqual(erros, []);
   await ctx.close();
 });
 
@@ -619,5 +690,295 @@ test('embaralhar marcado sem caderno não salva versões sem gabarito', async ()
   await page.check('#embaralhar-questoes');
   await page.click('#salvar-prova');
   assert.match(await page.textContent('#prova-msg'), /Falta o gabarito da versão B/);
+  await ctx.close();
+});
+
+// ---------- plano 1: pontuação parcial por alternativa ----------
+test('pontuação parcial: errada que vale 75% entra na nota da conferência e continua depois de recarregar', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await page.click('#aba-prova');
+  await page.fill('#prova-nome', 'Parcial');
+  await page.fill('#prova-num', '4');
+  await page.dispatchEvent('#prova-num', 'change');
+  await page.check('#parcial-ativar');
+  for (const [i, a] of [...'ABCD'].entries()) await page.click(`#gabarito button[data-q="${i}"][data-alt="${a}"]`);
+  await page.fill('#gabarito input[data-parcial="0"][data-alt="B"]', '75');
+  await page.fill('#gabarito input[data-parcial="0"][data-alt="C"]', '50');
+  assert.equal(await page.locator('#gabarito input[data-parcial="0"][data-alt="A"]').count(), 0); // a certa vale 100%
+  await page.click('#salvar-prova');
+  assert.match(await page.textContent('#prova-msg'), /Prova salva/);
+  await fotografarECorrigir(page, '2A', '01', [...'BBCD']);
+  assert.match(await page.textContent('#placar'), /3 de 4 acertos · nota 9,4/); // 3,75 de 4
+  await page.reload();
+  await page.click('#aba-prova');
+  assert.ok(await page.isChecked('#parcial-ativar'));
+  assert.equal(await page.inputValue('#gabarito input[data-parcial="0"][data-alt="B"]'), '75');
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+// ---------- plano 2: prova a partir de um arquivo Word ----------
+test('prova do Word: questões, texto-base, fonte, comando, imagem, cabeçalho e gabarito vêm do .docx', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await page.click('#aba-prova');
+  await page.setInputFiles('#importar-docx', join(import.meta.dirname, 'fixtures', 'prova-exemplo.docx'));
+  await page.waitForFunction(() => /importadas/.test(document.querySelector('#prova-msg').textContent));
+  assert.match(await page.textContent('#prova-msg'), /3 questões importadas.*O gabarito também veio do arquivo/);
+  assert.equal(await page.inputValue('#prova-nome'), 'AVALIAÇÃO DE RECUPERAÇÃO FINAL');
+  assert.equal(await page.inputValue('#prova-valor'), '15'); // 3 questões de 5,0 pontos
+  assert.equal(await page.getAttribute('#gabarito button[data-q="0"][data-alt="D"]', 'aria-pressed'), 'true');
+  assert.equal(await page.getAttribute('#gabarito button[data-q="2"][data-alt="B"]', 'aria-pressed'), 'true');
+  const q = n => `#caderno-questoes [data-cq="${n}"]`;
+  assert.match(await page.inputValue(`${q(0)} textarea[data-campo="enunciado"]`), /^Montaigne observou/);
+  assert.match(await page.inputValue(`${q(0)} input[data-campo="fonte"]`), /^Texto elaborado a partir de Michel de Montaigne/);
+  assert.equal(await page.inputValue(`${q(0)} textarea[data-campo="comando"]`), 'Ao comparar os costumes, Montaigne sugere que:');
+  assert.equal(await page.inputValue(`${q(0)} input[data-texto="D"]`), 'chamamos de bárbaro o que difere dos nossos costumes, o que revela um julgamento etnocêntrico.');
+  assert.match(await page.inputValue(`${q(1)} input[data-campo="fonte"]`), /^KANT, Immanuel/);
+  assert.equal(await page.locator(`${q(1)} img.miniatura`).count(), 1);
+  assert.equal(await page.inputValue(`${q(2)} textarea[data-campo="comando"]`), '');
+  await page.$eval('#cabecalho-prova', d => { d.open = true; });
+  assert.equal(await page.inputValue('[data-cab="professor"]'), 'Tiago Carvalho');
+  assert.equal(await page.inputValue('[data-cab="disciplina"]'), 'Filosofia');
+  assert.equal(await page.inputValue('[data-cab="subtitulo"]'), 'FILOSOFIA – 2ª SÉRIE DO ENSINO MÉDIO – 2026');
+  assert.match(await page.inputValue('[data-cab="escola"]'), /GOVERNO DO ESTADO DO ESPÍRITO SANTO\n.*\nESCOLA ESTADUAL EXEMPLO/);
+  await page.click('#salvar-prova');
+  assert.match(await page.textContent('#prova-msg'), /Prova salva/);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+test('prova do Word: arquivo que não é .docx explica o que fazer', async () => {
+  const { ctx, page } = await abrirApp();
+  await page.click('#aba-prova');
+  await page.setInputFiles('#importar-docx', { name: 'velha.docx', mimeType: 'application/octet-stream', buffer: Buffer.from('não é zip') });
+  await page.waitForFunction(() => /salve como \.docx/.test(document.querySelector('#prova-msg').textContent));
+  await ctx.close();
+});
+
+// ---------- plano: destacar dupla marcação ou rasura (pesquisa A) ----------
+test('conferência avisa marcação dupla ou rasura e questão em branco', async () => {
+  const { ctx, page } = await abrirApp();
+  await criarProva(page);
+  await fotografarECorrigir(page, '2A', '07', [...'ABCDEABCD', null]);
+  await page.selectOption('#respostas select[data-q="1"]', 'dupla');
+  const p = await page.textContent('#pendencias');
+  assert.match(p, /Dupla marcação \(ou rasura\) na questão 2/);
+  assert.match(p, /Em branco: questão 10\./);
+  assert.ok(await page.isEnabled('#salvar-leitura')); // é só um aviso
+  await ctx.close();
+});
+
+// ---------- plano: análise na tela, conceitos e posição ----------
+test('resultados: posição, conceito e análise das questões e das notas na tela', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await criarProva(page);
+  await page.fill('#prova-conceitos', 'A 9\nB 7\nC 0');
+  await page.click('#salvar-prova');
+  await fotografarECorrigir(page, '2A', '01', [...'ABCDEABCDE']); await page.click('#salvar-leitura');
+  await fotografarECorrigir(page, '2A', '02', [...'ABCDEABCEE']); await page.click('#salvar-leitura');
+  await page.click('#aba-resultados');
+  const linhas = await page.locator('#resultados tbody tr').allTextContents();
+  assert.match(linhas[0], /01.*10\/10.*10,0.*1º.*percentil 100.*A/s);
+  assert.match(linhas[1], /02.*9\/10.*9,0.*2º.*percentil 0.*A/s);
+  await page.click('#analise-tela summary');
+  assert.match(await page.textContent('#analise-notas'), /2 aluno\(s\) · média 9,5/);
+  const q9 = await page.locator('#analise-questoes tbody tr >> nth=8').textContent();
+  assert.match(q9, /^9\s*50%/); // metade acertou a Q9
+  assert.equal(await page.locator('#analise-questoes tbody tr >> nth=8 >> td.certa-analise').textContent(), '50%');
+  // faixa de conceito inválida não salva
+  await page.click('#aba-prova');
+  await page.fill('#prova-conceitos', 'A nove');
+  await page.click('#salvar-prova');
+  assert.match(await page.textContent('#prova-msg'), /Em Conceitos/);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+// ---------- plano: importar lista e gabarito de planilha/CSV ----------
+test('lista da turma e gabarito trazidos de arquivos CSV', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await page.click('#aba-prova');
+  await page.fill('#prova-nome', 'Do CSV');
+  await page.setInputFiles('#gabarito-arquivo', { name: 'gabarito.csv', mimeType: 'text/csv', buffer: Buffer.from('Questão;Resposta\n1;b\n2;C\n3;a\n') });
+  await page.waitForFunction(() => /Gabarito de 3 questões/.test(document.querySelector('#prova-msg').textContent));
+  assert.equal(await page.inputValue('#prova-num'), '3');
+  assert.equal(await page.getAttribute('#gabarito button[data-q="1"][data-alt="C"]', 'aria-pressed'), 'true');
+  await page.click('#salvar-prova');
+  assert.match(await page.textContent('#prova-msg'), /Prova salva/);
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#baixar-gabarito')]);
+  assert.equal(download.suggestedFilename(), 'Gabarito - Do CSV.csv');
+  assert.match((await readFile(await download.path(), 'utf8')), /Questão;Gabarito\n1;B\n2;C\n3;A/);
+  await page.click('#aba-resultados');
+  await page.click('#lista summary');
+  await page.setInputFiles('#lista-arquivo', { name: 'turma.csv', mimeType: 'text/csv', buffer: Buffer.from('Nº,Nome\n1,Ana Souza\n2,Bia Lima\n') });
+  await page.waitForFunction(() => /2 nomes trazidos/.test(document.querySelector('#lista-msg').textContent));
+  assert.equal(await page.inputValue('#lista-nomes'), '01 Ana Souza\n02 Bia Lima');
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+// ---------- plano: duplicar prova ----------
+test('duplicar prova: cópia com o mesmo gabarito, outro nome e sem correções', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await criarProva(page, { nome: 'Original', gabarito: 'EDCBAEDCBA' });
+  await fotografarECorrigir(page, '2A', '01', [...'EDCBAEDCBA']); await page.click('#salvar-leitura');
+  await page.click('#aba-prova');
+  await page.click('#duplicar-prova');
+  assert.equal(await page.inputValue('#prova-nome'), 'Original (cópia)');
+  assert.equal(await page.getAttribute('#gabarito button[data-q="0"][data-alt="E"]', 'aria-pressed'), 'true');
+  await page.click('#salvar-prova');
+  assert.match(await page.textContent('#prova-msg'), /Prova salva/);
+  const provas = await page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('correcao-v3')).provas));
+  assert.equal(provas.length, 2);
+  const copia = provas.find(e => e.prova.nome === 'Original (cópia)'), original = provas.find(e => e.prova.nome === 'Original');
+  assert.deepEqual(Object.keys(copia.correcoes), []);
+  assert.notEqual(copia.prova.codigo, original.prova.codigo);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+// ---------- plano: várias fotos da galeria e corrigir digitando ----------
+test('várias fotos da galeria: uma conferência por vez e aviso das que não deu para ler', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await criarProva(page);
+  const f1 = await fotografarFolha(page, '01', [...'ABCDEABCDE']);
+  const f2 = await fotografarFolha(page, '02', [...'ABCDEABCDA']);
+  await page.click('#aba-corrigir');
+  await page.fill('#turma', '2A');
+  await page.setInputFiles('#fotos', [
+    { name: 'a.png', mimeType: 'image/png', buffer: f1 },
+    { name: 'ruim.png', mimeType: 'image/png', buffer: await page.screenshot() },
+    { name: 'b.png', mimeType: 'image/png', buffer: f2 },
+  ]);
+  await page.waitForSelector('#conferencia:not([hidden])');
+  assert.equal(await page.inputValue('#numero'), '01');
+  assert.match(await page.textContent('#fila-status'), /faltam 2/);
+  await page.click('#salvar-leitura');
+  await page.waitForFunction(() => document.querySelector('#numero').value === '02');
+  assert.match(await page.textContent('#placar'), /9 de 10/);
+  await page.click('#salvar-leitura');
+  await page.waitForSelector('#erro-leitura:not([hidden])');
+  assert.match(await page.textContent('#erro-leitura'), /Não consegui ler: ruim\.png/);
+  assert.equal(await page.evaluate(() => Object.keys(Object.values(JSON.parse(localStorage.getItem('correcao-v3')).provas)[0].correcoes).length), 2);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+test('corrigir digitando as respostas, sem foto', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await criarProva(page);
+  await page.click('#aba-corrigir');
+  await page.fill('#turma', '2A');
+  await page.click('#digitar');
+  await page.waitForSelector('#conferencia:not([hidden])');
+  assert.ok(await page.isHidden('#canvas'));
+  assert.ok(await page.isDisabled('#salvar-leitura'));
+  for (const [i, a] of [...'ABCDEABCDA'].entries()) await page.selectOption(`#respostas select[data-q="${i}"]`, a);
+  await page.fill('#numero', '15');
+  assert.match(await page.textContent('#placar'), /9 de 10/);
+  await page.click('#salvar-leitura');
+  assert.match(await page.textContent('#corrigir-msg'), /nº 15 \(2A\) salva/);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+// ---------- plano E: modo pesquisa ----------
+test('modo pesquisa: salva sem gabarito, conta respostas e a planilha tem a aba Pesquisa', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await page.click('#aba-prova');
+  await page.fill('#prova-nome', 'Questionário');
+  await page.fill('#prova-num', '4'); await page.dispatchEvent('#prova-num', 'change');
+  await page.check('#prova-pesquisa');
+  assert.ok(await page.isHidden('#gabarito'));
+  await page.click('#salvar-prova');
+  assert.match(await page.textContent('#prova-msg'), /Prova salva/);
+  await fotografarECorrigir(page, '9A', '01', ['A', 'B', null, 'D']);
+  assert.match(await page.textContent('#placar'), /Pesquisa: 3 de 4 questões respondidas/);
+  await page.click('#salvar-leitura');
+  await page.click('#aba-resultados');
+  assert.match(await page.locator('#resultados tbody tr').first().textContent(), /01.*3\/4/s);
+  await page.click('#analise-tela summary');
+  assert.ok(await page.isHidden('#analise-notas'));
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#baixar')]);
+  const wb = XLSX.read(await readFile(await download.path()), { type: 'buffer' });
+  assert.deepEqual(wb.SheetNames.slice(0, 2), ['9A', 'Pesquisa']);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+// ---------- plano 5: relatório da turma ----------
+test('relatório da turma: junta a nota de cada prova e baixa a planilha', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await criarProva(page, { nome: 'P1', gabarito: 'EDCBAEDCBA' });
+  await fotografarECorrigir(page, '2A', '01', [...'EDCBAEDCBA']); await page.click('#salvar-leitura');
+  await page.click('#aba-prova');
+  await page.click('#duplicar-prova');
+  await page.fill('#prova-nome', 'P2');
+  await page.click('#salvar-prova');
+  await fotografarECorrigir(page, '2A', '01', [...'EDCBAEEEEE']); await page.click('#salvar-leitura');
+  await fotografarECorrigir(page, '2A', '02', [...'EDCBAEDCBA']); await page.click('#salvar-leitura');
+  await page.click('#aba-resultados');
+  await page.click('#relatorio summary');
+  await page.fill('#relatorio-turma', '3c');
+  await page.click('#baixar-relatorio');
+  assert.match(await page.textContent('#relatorio-msg'), /Nenhuma correção da turma 3C/);
+  await page.fill('#relatorio-turma', '2a');
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#baixar-relatorio')]);
+  assert.equal(download.suggestedFilename(), 'Relatorio 2A.xlsx');
+  const wb = XLSX.read(await readFile(await download.path()), { type: 'buffer' });
+  const l = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
+  assert.deepEqual(l[0], ['Nº', 'Nome', 'P1 (valor 10)', 'P2 (valor 10)', 'Soma', 'Média (0 a 10)']);
+  assert.deepEqual(l[1], ['01', '', 10, 6, 16, 8]);
+  assert.deepEqual(l[2], ['02', '', 'falta', 10, 10, 10]);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+// ---------- plano 6: banco de questões ----------
+test('banco de questões: guarda uma questão, acha na busca e usa em outra prova com o gabarito', async () => {
+  const { ctx, page, erros } = await abrirApp();
+  await criarProva(page, { nome: 'Origem', gabarito: 'ABCDE' });
+  await page.$eval('#caderno-editor', d => { d.open = true; });
+  await page.$eval('#cabecalho-prova', d => { d.open = true; });
+  await page.fill('[data-cab="disciplina"]', 'Filosofia');
+  const q = n => `#caderno-questoes [data-cq="${n}"]`;
+  await page.fill(`${q(2)} textarea[data-campo="enunciado"]`, 'Para Sócrates, só sei que nada sei.');
+  await page.check(`${q(2)} input[type=radio][value="D"]`);
+  for (const a of 'ABCDE') await page.fill(`${q(2)} input[data-texto="${a}"]`, `alternativa ${a}`);
+  await page.$eval('#banco', d => { d.open = true; });
+  await page.fill('#banco-assunto', 'Filosofia antiga');
+  await page.click(`${q(2)} [data-guardar]`);
+  assert.match(await page.textContent('#banco-msg'), /Questão 3 guardada/);
+  await page.click('#salvar-prova');
+  await page.click('#nova-prova');
+  await page.fill('#prova-nome', 'Destino');
+  await page.fill('#prova-num', '1'); await page.dispatchEvent('#prova-num', 'change');
+  await page.$eval('#caderno-editor', d => { d.open = true; });
+  await page.$eval('#banco', d => { d.open = true; });
+  await page.fill('#banco-busca', 'socrates');
+  assert.match(await page.textContent('#banco-lista'), /Filosofia · Filosofia antiga.*Para Sócrates/s);
+  await page.fill('#banco-busca', 'kant');
+  assert.match(await page.textContent('#banco-lista'), /Nada encontrado/);
+  await page.fill('#banco-busca', '');
+  await page.click('#banco-lista [data-usar]');
+  assert.match(await page.textContent('#banco-msg'), /como questão 1/);
+  assert.equal(await page.inputValue(`${q(0)} textarea[data-campo="enunciado"]`), 'Para Sócrates, só sei que nada sei.');
+  assert.equal(await page.getAttribute('#gabarito button[data-q="0"][data-alt="D"]', 'aria-pressed'), 'true');
+  await page.click('#banco-lista [data-usar]'); // de novo: vira a questão 2
+  assert.equal(await page.inputValue('#prova-num'), '2');
+  await page.click('#salvar-prova');
+  assert.match(await page.textContent('#prova-msg'), /Prova salva/);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+test('modo pesquisa ligado numa prova com gabarito guarda o gabarito', async () => {
+  const { ctx, page } = await abrirApp();
+  await criarProva(page, { gabarito: 'EDCBAEDCBA' });
+  await page.check('#prova-pesquisa');
+  await page.click('#salvar-prova');
+  const prova = await page.evaluate(() => { const a = JSON.parse(localStorage.getItem('correcao-v3')); return a.provas[a.ativa].prova; });
+  assert.equal(prova.pesquisa, true);
+  assert.equal(prova.versoes[0].gabarito.join(''), 'EDCBAEDCBA');
   await ctx.close();
 });

@@ -20,7 +20,8 @@ export const ehEmbaralhada = prova => !!prova.versoes[1]?.ordem;
 export function gerarVersoes(original, n, letras, embaralhar, semente) {
   const rnd = sorteador(semente), q = original.gabarito.length, L = letras.length;
   const trocaAlt = embaralhar.alternativas && !SEM_TROCA.includes(letras);
-  return [{ gabarito: [...original.gabarito], anuladas: [...original.anuladas] }, ...[...Array(n - 1)].map(() => {
+  // As outras versões não levam os créditos parciais: a nota é dada pela versão original (paraOriginal).
+  return [{ gabarito: [...original.gabarito], anuladas: [...original.anuladas], ...(original.parciais ? { parciais: structuredClone(original.parciais) } : {}) }, ...[...Array(n - 1)].map(() => {
     const ordem = embaralhar.questoes ? embaralhado(q, rnd) : [...Array(q).keys()];
     const trocas = ordem.map(() => (trocaAlt ? embaralhado(L, rnd) : [...Array(L).keys()]));
     return {

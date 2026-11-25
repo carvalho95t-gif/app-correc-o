@@ -62,8 +62,8 @@ test('nome do arquivo sem caracteres inválidos', () => {
 // ---------- ticket 06: Análise e Resumo ----------
 const objetos = (wb, aba) => XLSX.utils.sheet_to_json(wb.Sheets[aba], { defval: '' });
 
-test('abas Análise e Resumo depois das turmas', () => {
-  assert.deepEqual(montarPlanilha(XLSX, estadoExemplo()).SheetNames, ['2A', '2B', 'Análise', 'Resumo', 'Dados']);
+test('abas Análise, Resumo e Diário depois das turmas', () => {
+  assert.deepEqual(montarPlanilha(XLSX, estadoExemplo()).SheetNames, ['2A', '2B', 'Análise', 'Resumo', 'Diário', 'Dados']);
 });
 
 test('Análise: acerto geral e por turma, alternativas marcadas e dificuldade', () => {
@@ -143,7 +143,7 @@ test('com versões: a nota usa o gabarito da versão do aluno', () => {
 
 test('com versões: uma aba de Análise por versão e Resumo por versão', () => {
   const wb = montarPlanilha(XLSX, estadoVersoes());
-  assert.deepEqual(wb.SheetNames, ['2A', 'Análise A', 'Análise B', 'Resumo', 'Dados']);
+  assert.deepEqual(wb.SheetNames, ['2A', 'Análise A', 'Análise B', 'Resumo', 'Diário', 'Dados']);
   assert.equal(objetos(wb, 'Análise B')[0]['% acerto geral'], 50);
   const [t] = objetos(wb, 'Resumo');
   assert.equal(t['Alunos'], 3);
@@ -257,6 +257,14 @@ test('restaurar traz o caderno', () => {
   assert.deepEqual(lerPlanilha(XLSX, wb).prova.caderno, caderno);
 });
 
+test('restaurar traz o cabeçalho da prova e a fonte e o comando das questões', () => {
+  const caderno = {
+    cabecalho: { escola: 'GOVERNO\nESCOLA', titulo: 'Recuperação', subtitulo: 'Filosofia', nomeCurto: 'Rec', professor: 'Tiago', disciplina: 'Filosofia', serie: '2ª', instrucoes: 'Sem consulta.' },
+    questoes: ['Q1', 'Q2', 'Q3', 'Q4'].map(t => ({ enunciado: t, fonte: 'Montaigne', comando: 'Assinale:', alternativas: ['a', 'b', 'c', 'd', 'e'] })),
+  };
+  assert.deepEqual(lerPlanilha(XLSX, releitura(montarPlanilha(XLSX, estadoExemplo({ caderno })))).prova.caderno, caderno);
+});
+
 test('restaurar traz a imagem da questão', () => {
   const imagem = 'data:image/jpeg;base64,' + 'A'.repeat(70000); // maior que uma célula do Excel
   const caderno = { questoes: ['Q1', 'Q2', 'Q3', 'Q4'].map((t, i) => ({ enunciado: t, alternativas: [], ...(i === 1 ? { imagem } : {}) })) };
@@ -323,4 +331,130 @@ test('embaralhado: com correções salvas não dá para mudar o embaralhamento',
   assert.throws(() => definirProva(e, novo), /embaralhamento/);
   const mesmo = { ...e.prova, versoes: [e.prova.versoes[0], e.prova.versoes[0]] };
   assert.doesNotThrow(() => definirProva(e, mesmo)); // salvar de novo sem mudar nada continua valendo
+});
+
+// ---------- plano 1: pontuação parcial por alternativa ----------
+// Como o Tiago usa no EvalBee: a certa vale 100%, as erradas 75%, 50%, 25% ou 0% da questão.
+const parciais = [{ B: 0.75, C: 0.5, D: 0.25 }, {}, { A: 0.5 }, {}];
+test('pontuação parcial: errada com crédito soma parte da questão na nota e na planilha', () => {
+  const e = estadoExemplo({ versoes: [{ gabarito: ['A', 'B', 'C', 'D'], anuladas: [], parciais }] });
+  const t = objetos(releitura(montarPlanilha(XLSX, e)), '2B');
+  // nº 03 marcou A,E,E,D: Q1 certa, Q4 certa = 2 pontos; nº 04 marcou branco,E,dupla,D = 1 ponto
+  const n3 = t.find(r => r['Nº'] === '03'), n4 = t.find(r => r['Nº'] === '04');
+  assert.equal(n3.Acertos, 2); assert.equal(n3.Pontos, 2); assert.equal(n3.Nota, 5);
+  assert.equal(n4.Pontos, 1);
+  const e2 = registrar(e, corr('2B', '05', ['B', 'B', 'A', 'A'])); // 0,75 + 1 + 0,5 + 0 = 2,25 de 4
+  const n5 = objetos(releitura(montarPlanilha(XLSX, e2)), '2B').find(r => r['Nº'] === '05');
+  assert.equal(n5.Acertos, 1); assert.equal(n5.Pontos, 2.25); assert.equal(n5.Nota, 5.6);
+});
+test('pontuação parcial: restaurar da planilha traz os créditos', () => {
+  const e = estadoExemplo({ versoes: [{ gabarito: ['A', 'B', 'C', 'D'], anuladas: [], parciais }] });
+  assert.deepEqual(lerPlanilha(XLSX, releitura(montarPlanilha(XLSX, e))).prova.versoes[0].parciais, parciais);
+});
+test('pontuação parcial em prova embaralhada: vale pela alternativa original', () => {
+  const v = { gabarito: ['A', 'B', 'C', 'D', 'E', 'A'], anuladas: [], parciais: [{ B: 0.5 }, {}, {}, {}, {}, {}] };
+  const { prova } = definirProva(estadoInicial(), { nome: 'Emb', valor: 10, versoes: [v, v], caderno: cadernoEmb({ questoes: true, alternativas: true }) });
+  assert.deepEqual(prova.versoes[0].parciais, v.parciais);
+  // na folha B, a questão 1 do original está na posição p; a letra que mostra a alternativa B original
+  const p = prova.versoes[1].ordem.indexOf(0), letraB = 'ABCDE'[prova.versoes[1].trocas[p].indexOf(1)];
+  const respostas = certasB(prova); respostas[p] = letraB;
+  const e = registrar({ ...estadoInicial(), prova }, { turma: '1A', numero: '01', versao: 'B', respostas, editado: false });
+  const linha = objetos(releitura(montarPlanilha(XLSX, e)), '1A').find(r => r['Nº'] === '01');
+  assert.equal(linha.Acertos, 5); assert.equal(linha.Pontos, 5.5);
+});
+
+// ---------- plano: conceitos por faixa, aba Diário e posição ----------
+import { conceitoDe, lerConceitos, analiseDaProva } from '../src/planilha.js';
+test('conceitos: lê as faixas digitadas e dá o conceito pela nota', () => {
+  const faixas = lerConceitos('A 9\nB 7\nC 5\nD 0');
+  assert.deepEqual(faixas, [{ conceito: 'A', min: 9 }, { conceito: 'B', min: 7 }, { conceito: 'C', min: 5 }, { conceito: 'D', min: 0 }]);
+  assert.equal(conceitoDe(faixas, 9.5), 'A'); assert.equal(conceitoDe(faixas, 7), 'B'); assert.equal(conceitoDe(faixas, 2), 'D');
+  assert.deepEqual(lerConceitos('Insuficiente 0\nSuficiente 6'), [{ conceito: 'Suficiente', min: 6 }, { conceito: 'Insuficiente', min: 0 }]);
+  assert.equal(lerConceitos('A nove'), null);
+});
+test('planilha: conceito e aba Diário com a nota no valor da prova', () => {
+  const e = estadoExemplo({ valor: 20, conceitos: lerConceitos('A 18\nB 14\nC 10\nD 0') }); // faixas na nota do valor da prova
+  const wb = releitura(montarPlanilha(XLSX, e));
+  const t = objetos(wb, '2B');
+  assert.equal(t.find(r => r['Nº'] === '03').Conceito, 'C'); // 2 de 4 = 10 de 20
+  const d = objetos(wb, 'Diário');
+  assert.deepEqual(Object.keys(d[0]), ['Turma', 'Nº', 'Nome', 'Nota (valor 20)', 'Conceito']);
+  assert.deepEqual(d.map(r => [r.Turma, r['Nº'], r['Nota (valor 20)']]), [['2A', '01', 15], ['2A', '02', 15], ['2B', '03', 10], ['2B', '04', 5]]);
+});
+test('análise na tela: % de cada alternativa, % de acerto e notas da prova', () => {
+  const a = analiseDaProva(estadoExemplo());
+  assert.equal(a.questoes[0].gabarito, 'A');
+  assert.equal(a.questoes[0].acerto, 75);          // 3 de 4 marcaram A
+  assert.equal(a.questoes[0].alternativas.A, 75);
+  assert.equal(a.questoes[0].branco, 25);
+  assert.deepEqual(a.notas, [7.5, 7.5, 5, 2.5]);
+});
+
+// ---------- plano: importar lista da turma e gabarito de planilha/CSV ----------
+import { listaDeLinhas, gabaritoDeLinhas } from '../src/planilha.js';
+test('lista da turma de uma planilha: com número ou só nomes, pulando o cabeçalho', () => {
+  assert.equal(listaDeLinhas([['Nº', 'Nome'], [1, 'Ana Souza'], [2, 'Bia Lima'], ['', ''], [10, 'Caio']]), '01 Ana Souza\n02 Bia Lima\n10 Caio');
+  assert.equal(listaDeLinhas([['Nome do aluno'], ['Ana'], ['Bia']]), 'Ana\nBia');
+  assert.equal(listaDeLinhas([['2A', 'Ana', 'ana@x.com']]), 'Ana');
+});
+test('gabarito de uma planilha: questão e letra, uma coluna de letras ou uma linha', () => {
+  assert.deepEqual(gabaritoDeLinhas([['Questão', 'Resposta'], [1, 'a'], [2, 'D'], [3, 'e']], 'ABCDE'), ['A', 'D', 'E']);
+  assert.deepEqual(gabaritoDeLinhas([['B'], ['C']], 'ABCDE'), ['B', 'C']);
+  assert.deepEqual(gabaritoDeLinhas([['A', 'B', 'C', 'D']], 'ABCD'), ['A', 'B', 'C', 'D']);
+  assert.deepEqual(gabaritoDeLinhas([[1, 'X'], [2, 'B']], 'ABCDE'), ['', 'B']);
+  assert.deepEqual(gabaritoDeLinhas([['nada']], 'ABCDE'), []);
+});
+
+test('lista de pesos colada: espaço, tab, ponto e vírgula ou linha; vírgula decimal', async () => {
+  const { lerPesos } = await import('../src/planilha.js');
+  assert.deepEqual(lerPesos('2 2\t1,5;1\n0.5'), [2, 2, 1.5, 1, 0.5]);
+  assert.equal(lerPesos('2 dois 1'), null);
+  assert.equal(lerPesos('2 0 1'), null);
+  assert.deepEqual(lerPesos('  '), []);
+});
+
+test('percentil: % dos outros alunos com nota menor ou igual', async () => {
+  const { percentis } = await import('../src/planilha.js');
+  assert.deepEqual(percentis([10, 5, 5, 0, 8]), [100, 50, 50, 0, 75]);
+  assert.deepEqual(percentis([9, 9, 1]), [100, 100, 0]);
+  assert.deepEqual(percentis([7]), [100]);
+});
+
+test('gabarito em CSV: uma linha por questão, uma coluna por versão; volta pelo mesmo leitor', async () => {
+  const { gabaritoEmLinhas, gabaritoDeLinhas } = await import('../src/planilha.js');
+  const uma = gabaritoEmLinhas({ versoes: [{ gabarito: ['A', 'C', ''] }] });
+  assert.deepEqual(uma, [['Questão', 'Gabarito'], [1, 'A'], [2, 'C'], [3, '']]);
+  assert.deepEqual(gabaritoDeLinhas(uma, 'ABCDE'), ['A', 'C', '']);
+  assert.deepEqual(gabaritoEmLinhas({ versoes: [{ gabarito: ['A', 'B'] }, { gabarito: ['B', 'A'] }] }), [['Questão', 'Versão A', 'Versão B'], [1, 'A', 'B'], [2, 'B', 'A']]);
+});
+
+// ---------- plano E: modo pesquisa (sem gabarito, só estatística) ----------
+test('pesquisa: aba da turma só com as respostas e aba Pesquisa com contagem e % de cada alternativa', () => {
+  const e = estadoExemplo({ gabarito: ['', '', '', ''], pesquisa: true, alternativas: 'ABCDE' });
+  const wb = releitura(montarPlanilha(XLSX, e));
+  assert.deepEqual(wb.SheetNames, ['2A', '2B', 'Pesquisa', 'Dados']);
+  const t = linhas(wb, '2B');
+  assert.deepEqual(t[0], ['Nº', 'Q1', 'Q2', 'Q3', 'Q4']);
+  assert.deepEqual(t[1], ['03', 'A', 'E', 'E', 'D']);
+  const p = linhas(wb, 'Pesquisa');
+  assert.deepEqual(p[0], ['Questão', 'Alunos', 'A', '% A', 'B', '% B', 'C', '% C', 'D', '% D', 'E', '% E', 'Branco', 'Dupla']);
+  assert.deepEqual(p[1], ['Q1', 4, 3, 75, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]);
+  assert.deepEqual(p[2], ['Q2', 4, 0, 0, 2, 50, 0, 0, 0, 0, 2, 50, 0, 0]);
+});
+
+// ---------- plano 5: relatório da turma juntando várias provas ----------
+test('relatório da turma: uma coluna por prova (nota no valor), soma e média; falta conta zero ou não', async () => {
+  const { relatorioDaTurma } = await import('../src/planilha.js');
+  let p1 = definirProva(estadoInicial(), { nome: 'P1', valor: 5, versoes: [{ gabarito: ['A', 'B'], anuladas: [] }] });
+  p1 = definirLista(p1, '2A', '01 Ana\n02 Bia');
+  p1 = registrar(registrar(p1, corr('2A', '01', ['A', 'B'])), corr('2A', '02', ['A', 'E']));
+  p1 = registrar(p1, corr('2B', '01', ['A', 'B']));
+  let p2 = definirProva(estadoInicial(), { nome: 'P2', valor: 10, versoes: [{ gabarito: ['C'], anuladas: [] }] });
+  p2 = registrar(p2, corr('2A', '01', ['E']));
+  assert.deepEqual(relatorioDaTurma([p1, p2], '2A', false), [
+    ['Nº', 'Nome', 'P1 (valor 5)', 'P2 (valor 10)', 'Soma', 'Média (0 a 10)'],
+    ['01', 'Ana', 5, 0, 5, 3.3],
+    ['02', 'Bia', 2.5, 'falta', 2.5, 5],
+  ]);
+  assert.deepEqual(relatorioDaTurma([p1, p2], '2A', true)[2], ['02', 'Bia', 2.5, 'falta', 2.5, 1.7]);
 });

@@ -19,15 +19,27 @@ export const ativo = arquivo => arquivo.provas[arquivo.ativa] ?? estadoInicial()
 // Grava o estado da prova ativa; uma prova nova ganha um id na primeira gravação.
 export function comAtivo(arquivo, estado) {
   const id = arquivo.ativa ?? `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-  return { provas: { ...arquivo.provas, [id]: estado }, ativa: id };
+  return { ...arquivo, provas: { ...arquivo.provas, [id]: estado }, ativa: id };
 }
 export const escolher = (arquivo, id) => ({ ...arquivo, ativa: id });
 export const acharPorNome = (arquivo, nome) => Object.keys(arquivo.provas).find(id => arquivo.provas[id].prova.nome === nome) ?? null;
 export const novaProva = arquivo => ({ ...arquivo, ativa: null });
 export function apagarProva(arquivo, id) {
   const { [id]: _, ...resto } = arquivo.provas;
-  return { provas: resto, ativa: arquivo.ativa === id ? null : arquivo.ativa };
+  return { ...arquivo, provas: resto, ativa: arquivo.ativa === id ? null : arquivo.ativa };
 }
+// Banco de questões: { id, enunciado, fonte, comando, alternativas, certa, disciplina, assunto, imagem? }.
+// A mesma questão (mesmo texto-base, fonte, comando, imagem e alternativas) guardada de novo atualiza a que já estava.
+const mesma = (a, b) => a.enunciado === b.enunciado && a.fonte === b.fonte && a.comando === b.comando && a.imagem === b.imagem && JSON.stringify(a.alternativas) === JSON.stringify(b.alternativas);
+export function guardarNoBanco(arquivo, questao) {
+  const banco = arquivo.banco ?? [], antiga = banco.find(x => mesma(x, questao));
+  const nova = { ...questao, id: antiga?.id ?? `b${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}` };
+  return { ...arquivo, banco: antiga ? banco.map(x => (x === antiga ? nova : x)) : [...banco, nova] };
+}
+export const tirarDoBanco = (arquivo, id) => ({ ...arquivo, banco: (arquivo.banco ?? []).filter(x => x.id !== id) });
+const semAcento = t => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+export const buscarNoBanco = (banco, termo) => banco.filter(x =>
+  semAcento([x.disciplina, x.assunto, x.enunciado, x.comando, ...x.alternativas].join(' ')).includes(semAcento(termo).trim()));
 export const listar = arquivo =>
   Object.entries(arquivo.provas).map(([id, e]) => ({ id, nome: e.prova.nome })).sort((a, b) => a.nome.localeCompare(b.nome));
 
