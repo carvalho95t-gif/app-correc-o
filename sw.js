@@ -1,8 +1,10 @@
 // Guarda os arquivos do app para funcionar sem internet. Responde do cache na hora e atualiza
 // o cache pela rede em segundo plano, então uma versão nova aparece na abertura seguinte.
-const VERSAO = 'correcao-v12';
+const VERSAO = 'correcao-v13';
 const ARQUIVOS = ['./', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest',
-  'src/layout.js', 'src/folha.js', 'src/leitor.js', 'src/nota.js', 'src/estado.js', 'src/planilha.js', 'src/codigo.js', 'src/caderno.js', 'src/imagens.js', 'src/embaralhar.js', 'src/qr.js', 'src/docx.js',
+  'src/layout.js', 'src/folha.js', 'src/leitor.js', 'src/nota.js', 'src/estado.js', 'src/planilha.js', 'src/codigo.js', 'src/caderno.js', 'src/imagens.js', 'src/embaralhar.js', 'src/qr.js', 'src/docx.js', 'src/piadas.js',
+  'vendor/quicksand/quicksand-latin-500-normal.woff2', 'vendor/quicksand/quicksand-latin-700-normal.woff2',
+  ...['neide', 'valdir', 'kevin', 'merenda'].flatMap(q => ['tedio', 'bravo', 'susto', 'feliz'].map(c => `img/elenco/${q}-${c}.svg`)),
   'vendor/xlsx.mini.min.js', 'vendor/qrcode-generator.js', 'vendor/jsQR.js', 'icones/icone-192.png', 'icones/icone-512.png', 'icones/icone.svg'];
 
 self.addEventListener('install', e => e.waitUntil(caches.open(VERSAO).then(c => c.addAll(ARQUIVOS)).then(() => self.skipWaiting())));

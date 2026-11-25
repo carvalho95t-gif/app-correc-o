@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Correção de provas</title>
-  <meta name="theme-color" content="#e4e3e8" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#1e1f25" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f6eee6" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#2a2320" media="(prefers-color-scheme: dark)">
   <script>try { const t = localStorage.getItem('tema'); if (t) document.documentElement.dataset.tema = t; } catch (e) {}</script>
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.webmanifest">
@@ -63,6 +63,7 @@
       <button id="baixar-gabarito">Baixar o gabarito em CSV</button>
       <label class="opcao"><input type="checkbox" id="parcial-ativar"> Pontuação parcial: alternativas erradas valem parte da questão</label>
       <div id="gabarito"></div>
+      <div id="fala-anulada"></div>
       </div>
       <details id="caderno-editor">
         <summary>Caderno de prova (opcional)</summary>
@@ -144,6 +145,13 @@
       <p id="corrigir-vazio" class="dica">Salve a prova primeiro para poder corrigir.</p>
       <div id="corrigir-pronto" hidden>
         <p id="corrigindo" class="destaque"></p>
+        <fieldset id="deboche" class="segmentos">
+          <legend>Nível de deboche</legend>
+          <label><input type="radio" name="deboche" value="desligado"> Desligado</label>
+          <label><input type="radio" name="deboche" value="leve"> Leve</label>
+          <label><input type="radio" name="deboche" value="raiz"> Raiz</label>
+        </fieldset>
+        <div id="cafe" class="cartao-fala" hidden></div>
         <label for="turma">Turma</label>
         <input id="turma" autocomplete="off" placeholder="Ex.: 2A">
         <button id="abrir-camera" class="primario">Corrigir com a câmera</button>
@@ -181,6 +189,7 @@
           <label for="numero">Número de chamada</label>
           <input id="numero" inputmode="numeric" maxlength="2" autocomplete="off">
           <p id="placar" aria-live="polite"></p>
+          <div id="fala-leitura"></div>
           <p id="pendencias" class="dica"></p>
           <div id="respostas"></div>
           <div class="acoes">
