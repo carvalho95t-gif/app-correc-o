@@ -148,3 +148,7 @@ table.analise td, table.analise th { text-align: center; padding: 4px 6px; }
 #corrigindo + label, #tela-corrigir .acoes label.botao, #tela-corrigir .acoes button { flex: 1; }
 details summary { min-height: 44px; cursor: pointer; font-weight: 600; }
 #tema[aria-pressed=true] { background: var(--ativo); color: var(--ativo-texto); }
+::placeholder { color: var(--suave); opacity: .75; font-style: italic; font-weight: 400; }
+.acoes label.botao { margin: 0; width: auto; }
+label.botao, button { text-align: center; }
+button, .botao { line-height: 1.25; }
