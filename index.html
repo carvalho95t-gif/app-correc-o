@@ -50,6 +50,7 @@
       <p class="dica">Toque na alternativa certa de cada questão. "Anular" conta a questão como certa para todos.</p>
       <label for="gabarito-arquivo" class="botao">Trazer o gabarito de uma planilha ou CSV</label>
       <input id="gabarito-arquivo" type="file" accept=".xlsx,.xls,.csv,.ods" class="oculto">
+      <button id="baixar-gabarito">Baixar o gabarito em CSV</button>
       <label class="opcao"><input type="checkbox" id="parcial-ativar"> Pontuação parcial: alternativas erradas valem parte da questão</label>
       <div id="gabarito"></div>
       <details id="caderno-editor">
@@ -83,6 +84,13 @@
         <button id="aplicar-peso">Aplicar</button>
       </div>
       <p id="pesos-resumo" role="status"></p>
+      <details id="pesos-colar">
+        <summary>Colar a lista de pesos</summary>
+        <p class="dica">Um peso por questão, na ordem, separados por espaço ou um por linha (pode colar a coluna de uma planilha). Ex.: "2 2 1 1,5".</p>
+        <label for="pesos-lista">Pesos</label>
+        <textarea id="pesos-lista" rows="2"></textarea>
+        <div class="acoes"><button id="aplicar-lista-pesos">Usar estes pesos</button><button id="pesos-iguais">Todas com o mesmo peso</button></div>
+      </details>
       <h3>Conceitos</h3>
       <p class="dica">Opcional. Um conceito por linha com a nota mínima, na escala do valor da prova. Ex.: "A 9", "B 7", "C 5", "D 0".</p>
       <textarea id="prova-conceitos" rows="3" placeholder="A 9&#10;B 7&#10;C 5&#10;D 0"></textarea>

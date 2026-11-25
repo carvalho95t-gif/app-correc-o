@@ -4,7 +4,7 @@ import { folhaSVG, quadroSVG } from './src/folha.js';
 import { qrSVG, textoQR, lerQR } from './src/qr.js';
 import { carregar, salvar, definirProva, arquivoInicial, ativo, comAtivo, escolher, novaProva, apagarProva, listar,
   acharPorNome, validarAreas, registrar, chave, remover, marcarExportado, definirLista, nomeDo, versaoDe } from './src/estado.js';
-import { montarPlanilha, nomeArquivo, porTurma, notaDe, lerPlanilha, temParciais, lerConceitos, conceitoDe, posicoes, analiseDaProva, listaDeLinhas, gabaritoDeLinhas } from './src/planilha.js';
+import { montarPlanilha, nomeArquivo, porTurma, notaDe, lerPlanilha, temParciais, lerConceitos, conceitoDe, posicoes, percentis, lerPesos, analiseDaProva, listaDeLinhas, gabaritoDeLinhas, gabaritoEmLinhas } from './src/planilha.js';
 import { paraCinza, lerFolha, homografia, aplicar, acharMarcadores, quadroPronto, razaoDe, poucaLuz } from './src/leitor.js';
 import { codificar } from './src/codigo.js';
 import { cadernoHTML, estiloDePagina } from './src/caderno.js';
@@ -213,6 +213,13 @@ $('#aplicar-peso').addEventListener('click', () => {
   rascunho.pesos = Array.from({ length: n }, (_, i) => (i >= de - 1 && i <= ate - 1 ? p : rascunho.pesos?.[i] ?? 1));
   $('#pesos-resumo').textContent = resumoPesos(rascunho.pesos);
 });
+$('#aplicar-lista-pesos').addEventListener('click', () => {
+  const n = numQuestoes(rascunho), ps = lerPesos($('#pesos-lista').value);
+  if (!ps || ps.length !== n) { $('#pesos-resumo').textContent = ps ? `A lista tem ${ps.length} pesos e a prova tem ${n} questões.` : 'Cada peso precisa ser um número maior que zero, como 2 ou 1,5.'; return; }
+  rascunho.pesos = ps;
+  $('#pesos-resumo').textContent = resumoPesos(ps);
+});
+$('#pesos-iguais').addEventListener('click', () => { delete rascunho.pesos; $('#pesos-resumo').textContent = resumoPesos([]); });
 $('#adicionar-area').addEventListener('click', () => {
   rascunho.areas = [...(rascunho.areas ?? []), { nome: '', de: '', ate: '' }];
   renderProva();
@@ -335,6 +342,11 @@ $('#gabarito-arquivo').addEventListener('change', async e => {
   renderProva();
   const faltam = g.flatMap((x, i) => (x ? [] : [i + 1]));
   msg.textContent = `Gabarito de ${g.length} questões trazido de "${f.name}".` + (faltam.length ? ` Falta a letra da questão ${faltam.join(', ')}.` : '') + ' Confira e salve a prova.';
+});
+$('#baixar-gabarito').addEventListener('click', () => {
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(gabaritoEmLinhas(rascunho)), 'Gabarito');
+  XLSX.writeFile(wb, `Gabarito - ${(rascunho.nome.trim() || 'prova').replace(/[\\/:*?"<>|]/g, '')}.csv`, { bookType: 'csv', FS: ';' });
 });
 $('#parcial-ativar').addEventListener('change', e => {
   parcialAberto = e.target.checked;
@@ -724,14 +736,14 @@ function renderResultados() {
   $('#resultados-vazio').hidden = !vazio; $('#baixar').hidden = vazio;
   const comConceito = !!p?.conceitos?.length, valor = p?.valor ?? 10;
   $('#resultados').innerHTML = Object.entries(turmas).map(([t, cs]) => {
-    const rs = cs.map(c => notaDe(p, c)), pos = posicoes(rs.map(r => r.pontos / r.possiveis));
+    const rs = cs.map(c => notaDe(p, c)), fr = rs.map(r => r.pontos / r.possiveis), pos = posicoes(fr), perc = percentis(fr);
     return `
     <table><caption>Turma ${t} · ${cs.length} aluno(s)</caption>
       <thead><tr><th>Nº</th><th>Nome</th><th>Acertos</th><th>Nota</th><th>Posição</th>${comConceito ? '<th>Conceito</th>' : ''}<th><span class="oculto">Ações</span></th></tr></thead>
       <tbody>${cs.map((c, j) => {
         const r = rs[j], k = chave(t, c.numero), noValor = Math.round((r.pontos / r.possiveis) * valor * 10) / 10;
         return `<tr><td>${c.numero}${p.versoes.length > 1 ? ` (${c.versao})` : ''}${c.editado ? ' <span title="Leitura alterada por você" aria-label="leitura alterada por você">✎</span>' : ''}</td>
-          <td>${esc(nomeDo(estado, t, c.numero))}</td><td>${r.acertos}/${r.total}</td><td>${nota1(r.nota)}</td><td>${pos[j]}º</td>
+          <td>${esc(nomeDo(estado, t, c.numero))}</td><td>${r.acertos}/${r.total}</td><td>${nota1(r.nota)}</td><td>${pos[j]}º <small>(percentil ${perc[j]})</small></td>
           ${comConceito ? `<td>${esc(conceitoDe(p.conceitos, noValor))}</td>` : ''}
           <td><button data-apagar="${k}" aria-label="Apagar correção do nº ${c.numero}, turma ${t}">Apagar</button></td></tr>`;
       }).join('')}</tbody></table>`;

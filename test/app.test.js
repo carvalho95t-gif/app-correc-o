@@ -343,6 +343,30 @@ test('peso por questão: peso 2 nas questões 1 a 5 muda a nota da conferência'
   await ctx.close();
 });
 
+test('pesos colados de uma lista e "todas com o mesmo peso"', async () => {
+  const { ctx, page } = await abrirApp();
+  await criarProva(page);
+  await page.$eval('#pesos-colar', d => { d.open = true; });
+  await page.fill('#pesos-lista', '2 2 2');
+  await page.click('#aplicar-lista-pesos');
+  assert.match(await page.textContent('#pesos-resumo'), /3 pesos e a prova tem 10/);
+  await page.fill('#pesos-lista', '2\n2\n2\n2\n2\n1\n1\n1\n1\n1');
+  await page.click('#aplicar-lista-pesos');
+  assert.match(await page.textContent('#pesos-resumo'), /1 a 5 valem 2/);
+  await page.click('#salvar-prova');
+  await fotografarECorrigir(page, '2A', '01', [...'ABCDEEEEEE']);
+  assert.match(await page.textContent('#placar'), /nota 7,3/);
+  await page.click('#descartar');
+  await page.click('#aba-prova');
+  await page.$eval('#pesos-colar', d => { d.open = true; });
+  await page.click('#pesos-iguais');
+  assert.match(await page.textContent('#pesos-resumo'), /Todas as questões valem 1/);
+  await page.click('#salvar-prova');
+  await fotografarECorrigir(page, '2A', '01', [...'ABCDEEEEEE']);
+  assert.match(await page.textContent('#placar'), /nota 6,0/);
+  await ctx.close();
+});
+
 test('prova A–D: gabarito, folha e conferência só com A a D', async () => {
   const { ctx, page } = await abrirApp();
   await criarProva(page, { gabarito: 'ABCDABCD', alternativas: 'ABCD' });
@@ -754,8 +778,8 @@ test('resultados: posição, conceito e análise das questões e das notas na te
   await fotografarECorrigir(page, '2A', '02', [...'ABCDEABCEE']); await page.click('#salvar-leitura');
   await page.click('#aba-resultados');
   const linhas = await page.locator('#resultados tbody tr').allTextContents();
-  assert.match(linhas[0], /01.*10\/10.*10,0.*1º.*A/s);
-  assert.match(linhas[1], /02.*9\/10.*9,0.*2º.*A/s);
+  assert.match(linhas[0], /01.*10\/10.*10,0.*1º.*percentil 100.*A/s);
+  assert.match(linhas[1], /02.*9\/10.*9,0.*2º.*percentil 0.*A/s);
   await page.click('#analise-tela summary');
   assert.match(await page.textContent('#analise-notas'), /2 aluno\(s\) · média 9,5/);
   const q9 = await page.locator('#analise-questoes tbody tr >> nth=8').textContent();
@@ -781,6 +805,9 @@ test('lista da turma e gabarito trazidos de arquivos CSV', async () => {
   assert.equal(await page.getAttribute('#gabarito button[data-q="1"][data-alt="C"]', 'aria-pressed'), 'true');
   await page.click('#salvar-prova');
   assert.match(await page.textContent('#prova-msg'), /Prova salva/);
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#baixar-gabarito')]);
+  assert.equal(download.suggestedFilename(), 'Gabarito - Do CSV.csv');
+  assert.match((await readFile(await download.path(), 'utf8')), /Questão;Resposta\n1;B\n2;C\n3;A/);
   await page.click('#aba-resultados');
   await page.click('#lista summary');
   await page.setInputFiles('#lista-arquivo', { name: 'turma.csv', mimeType: 'text/csv', buffer: Buffer.from('Nº,Nome\n1,Ana Souza\n2,Bia Lima\n') });

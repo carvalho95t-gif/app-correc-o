@@ -34,6 +34,13 @@ export const conceitoDe = (faixas, nota) => faixas.find(f => nota >= f.min - 1e-
 const notaNoValor = (prova, r) => Math.round((r.pontos / r.possiveis) * (prova.valor ?? 10) * 10) / 10;
 // Posição de cada nota na lista (notas iguais dividem a posição).
 export const posicoes = notas => notas.map(n => 1 + notas.filter(m => m > n).length);
+// Percentil: % dos outros alunos com nota menor (o único aluno da prova fica com 100).
+export const percentis = notas => notas.map(n => (notas.length < 2 ? 100 : Math.round((100 * notas.filter(m => m < n).length) / (notas.length - 1))));
+// Pesos colados de uma planilha ou digitados: "2 2 1,5 1". null se algum não for número maior que zero.
+export function lerPesos(texto) {
+  const ps = String(texto ?? '').split(/[\s;]+/).filter(Boolean).map(t => (/^\d+(?:[.,]\d+)?$/.test(t) ? Number(t.replace(',', '.')) : NaN));
+  return ps.every(p => p > 0) ? ps : null;
+}
 // Prova embaralhada: a nota é sempre pela questão original, para os pesos e as áreas seguirem a questão.
 export function notaDe(prova, c) {
   if (ehEmbaralhada(prova)) { const v = prova.versoes[0]; return corrigir(v.gabarito, v.anuladas, paraOriginal(prova, c), prova.pesos, prova.areas, v.parciais); }
@@ -204,6 +211,12 @@ export function listaDeLinhas(linhas) {
   }).join('\n');
 }
 // Gabarito: linhas "questão, letra", uma coluna de letras ou uma linha de letras. Letra fora da prova fica ''.
+// Gabarito para baixar em CSV: [Questão, Resposta] ou uma coluna por versão.
+export function gabaritoEmLinhas(prova) {
+  const vs = prova.versoes;
+  return [['Questão', ...(vs.length === 1 ? ['Resposta'] : vs.map((_, i) => `Versão ${'ABCD'[i]}`))],
+    ...vs[0].gabarito.map((_, q) => [q + 1, ...vs.map(v => v.gabarito[q])])];
+}
 export function gabaritoDeLinhas(linhas, letras) {
   const letra = c => (letras.includes(celula(c).toUpperCase()) ? celula(c).toUpperCase() : '');
   const ehLetra = c => /^[A-Za-z]$/.test(celula(c));

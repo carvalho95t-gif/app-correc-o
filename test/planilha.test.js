@@ -404,3 +404,25 @@ test('gabarito de uma planilha: questão e letra, uma coluna de letras ou uma li
   assert.deepEqual(gabaritoDeLinhas([[1, 'X'], [2, 'B']], 'ABCDE'), ['', 'B']);
   assert.deepEqual(gabaritoDeLinhas([['nada']], 'ABCDE'), []);
 });
+
+test('lista de pesos colada: espaço, tab, ponto e vírgula ou linha; vírgula decimal', async () => {
+  const { lerPesos } = await import('../src/planilha.js');
+  assert.deepEqual(lerPesos('2 2\t1,5;1\n0.5'), [2, 2, 1.5, 1, 0.5]);
+  assert.equal(lerPesos('2 dois 1'), null);
+  assert.equal(lerPesos('2 0 1'), null);
+  assert.deepEqual(lerPesos('  '), []);
+});
+
+test('percentil: % dos outros alunos com nota menor', async () => {
+  const { percentis } = await import('../src/planilha.js');
+  assert.deepEqual(percentis([10, 5, 5, 0, 8]), [100, 25, 25, 0, 75]);
+  assert.deepEqual(percentis([7]), [100]);
+});
+
+test('gabarito em CSV: uma linha por questão, uma coluna por versão; volta pelo mesmo leitor', async () => {
+  const { gabaritoEmLinhas, gabaritoDeLinhas } = await import('../src/planilha.js');
+  const uma = gabaritoEmLinhas({ versoes: [{ gabarito: ['A', 'C', ''] }] });
+  assert.deepEqual(uma, [['Questão', 'Resposta'], [1, 'A'], [2, 'C'], [3, '']]);
+  assert.deepEqual(gabaritoDeLinhas(uma, 'ABCDE'), ['A', 'C', '']);
+  assert.deepEqual(gabaritoEmLinhas({ versoes: [{ gabarito: ['A', 'B'] }, { gabarito: ['B', 'A'] }] }), [['Questão', 'Versão A', 'Versão B'], [1, 'A', 'B'], [2, 'B', 'A']]);
+});
