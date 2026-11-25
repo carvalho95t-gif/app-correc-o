@@ -183,3 +183,10 @@ export function poucaLuz({ data }) {
   for (let i = 0; i < data.length; i += 7) soma += data[i];
   return soma / Math.ceil(data.length / 7) < 70;
 }
+
+// Reflexo da lâmpada ou do sol: parte da imagem estourada de branco, onde as bolinhas somem.
+export function reflexo({ data }) {
+  let n = 0;
+  for (let i = 0; i < data.length; i += 7) if (data[i] >= 252) n++;
+  return n / Math.ceil(data.length / 7) > 0.03;
+}

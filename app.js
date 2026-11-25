@@ -5,7 +5,7 @@ import { qrSVG, textoQR, lerQR } from './src/qr.js';
 import { carregar, salvar, definirProva, arquivoInicial, ativo, comAtivo, escolher, novaProva, apagarProva, listar,
   acharPorNome, validarAreas, registrar, chave, remover, marcarExportado, definirLista, nomeDo, versaoDe } from './src/estado.js';
 import { montarPlanilha, nomeArquivo, porTurma, notaDe, lerPlanilha, temParciais, lerConceitos, conceitoDe, posicoes, percentis, lerPesos, analiseDaProva, listaDeLinhas, gabaritoDeLinhas, gabaritoEmLinhas } from './src/planilha.js';
-import { paraCinza, lerFolha, homografia, aplicar, acharMarcadores, quadroPronto, razaoDe, poucaLuz } from './src/leitor.js';
+import { paraCinza, lerFolha, homografia, aplicar, acharMarcadores, quadroPronto, razaoDe, poucaLuz, reflexo } from './src/leitor.js';
 import { codificar } from './src/codigo.js';
 import { cadernoHTML, estiloDePagina } from './src/caderno.js';
 import { ehEmbaralhada, cadernoDaVersao } from './src/embaralhar.js';
@@ -565,7 +565,7 @@ async function lerImagem(img, largura, altura) {
     const foto = ctx.getImageData(0, 0, cv.width, cv.height);
     const cinza = paraCinza(foto);
     let [layout, l] = await ler(cinza, foto, estado.prova);
-    if (!l) { mostrarErro('Não encontrei os 4 quadrados pretos da folha. Enquadre a folha inteira, com boa luz, e fotografe de novo.'); return; }
+    if (!l) { mostrarErro('Não encontrei os 4 quadrados pretos da folha. ' + (reflexo(cinza) ? 'Há reflexo de luz na foto: incline um pouco o celular' : 'Enquadre a folha inteira, com boa luz,') + ' e fotografe de novo.'); return; }
     // O código fica no mesmo lugar em todas as folhas: lido com qualquer layout, decide a prova.
     const daFolha = l.codigo && idDoCodigo(l.codigo.prova);
     let aviso = l.codigo && !daFolha ? 'Esta folha é de uma prova que não está neste aparelho. Confira se está corrigindo a prova certa.' : '';
@@ -620,7 +620,8 @@ async function abrirCamera() {
     for (const r of RAZOES) if ((m = acharMarcadores(c, r))) break;
     camera.historico = [...camera.historico.slice(-2), m];
     $('#camera-status').textContent = m ? 'Achei a folha. Segure parado…'
-      : poucaLuz(c) ? 'Pouca luz: acenda a luz da sala ou chegue perto de uma janela.' : 'Procurando os 4 quadrados pretos…';
+      : poucaLuz(c) ? 'Pouca luz: acenda a luz da sala ou chegue perto de uma janela.'
+      : reflexo(c) ? 'Reflexo de luz na folha: incline um pouco o celular ou mude a folha de lugar.' : 'Procurando os 4 quadrados pretos…';
     if (quadroPronto(camera.historico, pequeno.width)) capturar(video);
   }, 250);
 }
