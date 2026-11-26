@@ -120,7 +120,15 @@ select#prova-versoes, select#versao, select#prova-alternativas { width: 100%; fo
 #versoes-gabarito button[aria-pressed=true] { background: var(--ativo); color: var(--ativo-texto); }
 .pesos { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
 .pesos input { width: 4.5em; }
-#video { width: 100%; border-radius: 26px; background: #2a2320; }
+/* Leitor: a câmera ocupa a tela toda, como um app de leitura. Fundo sempre escuro para a imagem se destacar. */
+#camera:not([hidden]) { position: fixed; inset: 0; z-index: 100; background: #2a2320; color: #f3e6da; display: flex; flex-direction: column; padding: env(safe-area-inset-top) 0 calc(16px + env(safe-area-inset-bottom)); }
+#visor { position: relative; flex: 1; min-height: 0; }
+#video, #camera-marcas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+#camera-salvo:empty { display: none; }
+#camera-salvo { margin: 8px 16px 0; padding: 10px 14px; border-radius: 14px; background: var(--verde-fundo); color: #3a2a22; font-weight: 700; text-align: center; }
+#camera-status { margin: 10px 16px; min-height: 2.9em; text-align: center; font-size: 1.05rem; font-weight: 600; }
+#fechar-camera { margin: 0 16px; background: #362d29; color: #f3e6da; border: 0; box-shadow: none; }
+#instalar { min-height: 44px; border-radius: 999px; padding: 0 14px; font-size: .9rem; margin-left: auto; }
 details#caderno-editor { margin: 16px 0; background: var(--cartao); padding: 8px 16px; border-radius: 26px; border: 0; box-shadow: var(--sombra); }
 .cq { border-top: 1px solid var(--linha); padding: 8px 0; }
 .cq .alt { display: flex; gap: 6px; align-items: center; margin: 4px 0; }
@@ -201,3 +209,4 @@ button, .botao { line-height: 1.25; }
 .rolagem { max-width: 100%; }
 .rolagem > table { margin-bottom: 0; }
 .rolagem { margin-bottom: 16px; border-radius: 16px; }
+#camera-salvo[data-tipo=erro] { background: var(--amarelo-fundo); }

@@ -9,11 +9,14 @@
   <script>try { const t = localStorage.getItem('tema'); if (t) document.documentElement.dataset.tema = t; } catch (e) {}</script>
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icones/icone.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icones/icone-192.png">
   <style id="pagina">@page { size: A4; margin: 0; }</style>
 </head>
 <body>
   <header>
     <h1>Correção de provas</h1>
+    <button id="instalar" hidden>Instalar o app</button>
     <button id="tema" aria-pressed="false">Tema escuro</button>
     <p id="aviso-exportar" role="status" hidden>Há correções que ainda não estão na planilha. Baixe a planilha em Resultados para não perder.</p>
   </header>
@@ -162,9 +165,13 @@
         <p id="fila-status" role="status"></p>
         <p class="dica">Enquadre a folha inteira, com os 4 quadrados pretos visíveis, sobre uma mesa e com boa luz.</p>
         <div id="camera" hidden>
-          <video id="video" playsinline muted aria-label="Imagem da câmera"></video>
+          <div id="visor">
+            <video id="video" playsinline muted aria-label="Imagem da câmera"></video>
+            <canvas id="camera-marcas" aria-hidden="true"></canvas>
+          </div>
+          <p id="camera-salvo" role="status"></p>
           <p id="camera-status" role="status"></p>
-          <div class="acoes"><button id="fechar-camera">Fechar a câmera</button></div>
+          <button id="fechar-camera">Fechar a câmera</button>
         </div>
         <p id="lendo" role="status" hidden>Lendo a folha…</p>
         <p id="erro-leitura" role="alert" hidden></p>
